@@ -12,7 +12,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import balance as B
@@ -39,6 +39,8 @@ from app.models import (
     PlanetState,
     SaveSlot,
 )
+from app.models import MilitaryState, VehicleUnit
+from app.models.military import VehicleStatus
 from app.core.seed_loader import facility_def_map
 from app.schemas.colony import SnapshotRequest
 from app.services import tech_service
@@ -155,6 +157,25 @@ async def get_hangar_capacity(session: AsyncSession, slot_id: int, planet_id: in
     return int(military.hangar_capacity) if military else 0
 
 
+async def get_military(session: AsyncSession, slot_id: int, planet_id: int) -> MilitaryState | None:
+    """军备池化行（安防预案与诱饵库存都在这里）。"""
+    return await session.get(MilitaryState, (slot_id, planet_id))
+
+
+async def count_idle_vehicles(session: AsyncSession, slot_id: int, planet_id: int) -> int:
+    """闲置载具数（满警戒度时"战车截杀"预案的资格判定）。"""
+    total = await session.execute(
+        select(func.count())
+        .select_from(VehicleUnit)
+        .where(
+            VehicleUnit.slot_id == slot_id,
+            VehicleUnit.planet_id == planet_id,
+            VehicleUnit.status == VehicleStatus.IDLE,
+        )
+    )
+    return int(total.scalar_one())
+
+
 # ----------------------------------------------------------------------
 # 工位上限（模块 C2 / D-2）
 # ----------------------------------------------------------------------
@@ -188,6 +209,9 @@ def build_engine_state(
     facilities: Mapping[str, int],
     *,
     garden: GardenState | None = None,
+    military: MilitaryState | None = None,
+    now: int | None = None,
+    idle_vehicles: int = 0,
     production_multiplier: float = 1.0,
 ) -> dict[str, Any]:
     """把 ORM 行摊平成离线引擎的输入（扁平字典，见 core/offline_engine 文档）。"""
@@ -200,6 +224,14 @@ def build_engine_state(
             if tile.get("seed_id") == "silent_grass" and tile.get("stage") != "WITHERED"
         )
     return {
+        "now": now if now is not None else now_timestamp(),
+        "decoy_count": int(military.decoy_count) if military else 0,
+        "security_policy": dict(military.security_policy) if military and military.security_policy else {},
+        "false_alarm_cooldown_until": (
+            (military.security_policy or {}).get("false_alarm_cooldown_until") if military else None
+        ),
+        "go_dark": bool((military.security_policy or {}).get("go_dark", False)) if military else False,
+        "idle_vehicles": int(idle_vehicles),
         "catnip": colony.catnip,
         "catnip_max": colony.catnip_max,
         "scrap": colony.scrap,
@@ -265,6 +297,20 @@ def _persist_report(
     colony.last_tick_time = now
 
 
+def _persist_security(military: MilitaryState | None, report: Mapping[str, Any]) -> None:
+    """把安防处置结果写回 military_state（诱饵库存是真列，冷却/静默状态进 security_policy JSON）。"""
+    if military is None:
+        return
+    policy = dict(military.security_policy or {})
+    if report.get("decoy_count") is not None:
+        military.decoy_count = int(report["decoy_count"])
+    if "false_alarm_cooldown_until" in report:
+        policy["false_alarm_cooldown_until"] = report.get("false_alarm_cooldown_until")
+    if "go_dark" in report:
+        policy["go_dark"] = bool(report.get("go_dark"))
+    military.security_policy = policy
+
+
 async def _accumulate_career_stats(
     session: AsyncSession,
     slot_id: int,
@@ -304,11 +350,22 @@ async def settle_offline(
     labor = await get_labor_counts(session, save.slot_id, planet_id)
     garden = await session.get(GardenState, (save.slot_id, planet_id))
 
-    engine_state = build_engine_state(colony, labor, facilities, garden=garden)
+    military = await get_military(session, save.slot_id, planet_id)
+    idle_vehicles = await count_idle_vehicles(session, save.slot_id, planet_id)
+    engine_state = build_engine_state(
+        colony,
+        labor,
+        facilities,
+        garden=garden,
+        military=military,
+        now=now,
+        idle_vehicles=idle_vehicles,
+    )
     delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)
 
     _persist_report(colony, labor, report, now=now)
+    _persist_security(military, report)
     save.playtime_seconds += max(0, int(delta_seconds))
     await _accumulate_career_stats(
         session, save.slot_id, report, elapsed_seconds=max(0, delta_seconds)
@@ -337,8 +394,12 @@ def build_state_payload(
     report: Mapping[str, Any],
     *,
     hangar_capacity: int,
+    military: MilitaryState | None = None,
     now: int,
 ) -> dict[str, Any]:
+    cooldown_until = int(report.get("false_alarm_cooldown_until") or 0)
+    go_dark = bool(report.get("go_dark", False))
+    policy = dict(military.security_policy or {}) if military else {}
     limits = B.workstation_limits(facilities, hangar_capacity=hangar_capacity)
     power = power_balance(
         facilities,
@@ -384,6 +445,17 @@ def build_state_payload(
         "workstation_limits": limits,
         "facilities": {facility_id: int(level) for facility_id, level in facilities.items()},
         "suspicion": {"current": round(colony.suspicion, PROGRESS_PRECISION), "max": B.SUSPICION_MAX},
+        "security": {
+            "decoy_count": int(military.decoy_count) if military else 0,
+            "cooldown_until": cooldown_until or None,
+            "cooldown_left_seconds": max(0, cooldown_until - now) if cooldown_until else 0,
+            "go_dark": go_dark,
+            "policy": {
+                "p1_use_decoy": bool(policy.get("p1_use_decoy", True)),
+                "p2_use_vehicle": bool(policy.get("p2_use_vehicle", True)),
+                "p3_go_dark": bool(policy.get("p3_go_dark", True)),
+            },
+        },
         "offline_report": build_report_summary(report),
     }
 
@@ -415,8 +487,16 @@ async def load_state(
     now = now_timestamp()
     report, colony, facilities, labor = await settle_offline(session, save, target_planet, now=now)
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
+    military = await get_military(session, slot_id, target_planet)
     payload = build_state_payload(
-        save, colony, facilities, labor, report, hangar_capacity=hangar, now=now
+        save,
+        colony,
+        facilities,
+        labor,
+        report,
+        hangar_capacity=hangar,
+        military=military,
+        now=now,
     )
     await session.commit()
     return payload

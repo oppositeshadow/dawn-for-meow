@@ -32,6 +32,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -97,13 +98,15 @@ def suspicion_rate_per_second(
     silent_grass_count: int = 0,
     suspicion_growth_multiplier: float = 1.0,
     active_facilities: int | None = None,
+    base_noise: float | None = None,
 ) -> float:
     """警戒度净变化率（点/s，数值平衡表 §8.2）。"""
     if active_facilities is None:
         active_facilities = sum(1 for level in facilities.values() if _int(level) > 0)
     acoustic = B.acoustic_noise_multiplier(_int(facilities.get("acoustic_layer", 0)))
+    base = B.SUSPICION_BASE_NOISE_PER_SEC if base_noise is None else base_noise
     rate = (
-        B.SUSPICION_BASE_NOISE_PER_SEC
+        base
         + B.SUSPICION_PER_ACTIVE_FACILITY_PER_SEC * active_facilities
     ) * acoustic * _num(suspicion_growth_multiplier, 1.0)
     if expedition_active:
@@ -195,6 +198,12 @@ def calculate_offline_progress(
     suspicion_growth_multiplier = _num(current_state.get("suspicion_growth_multiplier"), 1.0) or 1.0
     expedition_active = bool(current_state.get("expedition_active", False))
     silent_grass_count = _int(current_state.get("silent_grass_count", 0))
+    now_ts = _int(current_state.get("now", 0)) or int(time.time())
+    policy = current_state.get("security_policy") or {}
+    decoy_count = _int(current_state.get("decoy_count", 0))
+    cooldown_until = _int(current_state.get("false_alarm_cooldown_until", 0))
+    go_dark = bool(current_state.get("go_dark", False))
+    cooldown_active = bool(cooldown_until) and now_ts < cooldown_until
 
     power = power_balance(
         facilities,
@@ -216,6 +225,7 @@ def calculate_offline_progress(
         "suspicion_delta": 0.0,
         "charged_kwh": 0.0,
         "power": power,
+        "security_events": [],
         "notes": [],
         "final": _snapshot_state(current_state),
     }
@@ -245,6 +255,12 @@ def calculate_offline_progress(
     farmers = labor["farmer"]
     scavengers = labor["scavenger"]
     geeks = labor["geek"]
+    # 静默关灯（§8.3 优先级 3）：全员停工，农夫/拾荒/科研/踩轮一并锁死
+    if go_dark:
+        farmers = scavengers = geeks = 0
+        labor["power_runner"] = 0
+        report["security_events"].append({"type": "GO_DARK_ACTIVE"})
+        report["notes"].append("静默关灯中：全员停工，警戒度以 ×5 速率衰减，跌回 20 点后自动复工")
 
     # ---- 速率（§3.2 净产出公式）----
     catnip_prod_rate = farmers * B.FARMER_CATNIP_PER_SEC * production_multiplier
@@ -297,13 +313,15 @@ def calculate_offline_progress(
     report["gained_cats"] = max(0, total_cats - _int(current_state.get("cats_total", 0)))
 
     # ---- 警戒度（§8.2）----
-    active_facilities = sum(1 for level in facilities.values() if _int(level) > 0)
+    # 静默关灯期间机器全停 ⇒ 设施噪音按 0 计（与断粮同口径）
+    active_facilities = 0 if go_dark else sum(1 for level in facilities.values() if _int(level) > 0)
     rate_normal = suspicion_rate_per_second(
         facilities,
         expedition_active=expedition_active,
         silent_grass_count=silent_grass_count,
         suspicion_growth_multiplier=suspicion_growth_multiplier,
         active_facilities=active_facilities,
+        base_noise=0.0 if go_dark else None,
     )
     # 断粮期间全员瘫软停工 ⇒ 设施噪音归 0，只剩基础噪音与自然衰减
     rate_starve = suspicion_rate_per_second(
@@ -312,12 +330,59 @@ def calculate_offline_progress(
         silent_grass_count=silent_grass_count,
         suspicion_growth_multiplier=suspicion_growth_multiplier,
         active_facilities=0,
+        base_noise=0.0 if go_dark else None,
     )
-    suspicion = B.clamp(
-        suspicion + rate_normal * normal_duration + rate_starve * starve_duration,
-        0.0,
-        B.SUSPICION_MAX,
-    )
+    suspicion_delta = rate_normal * normal_duration + rate_starve * starve_duration
+    if go_dark:
+        # §8.3 优先级 3：静默关灯期间警戒度以 ×5 速率**衰减**（基础噪音已归 0，净 −0.005 点/s）
+        suspicion_delta *= B.GO_DARK_DECAY_MULTIPLIER
+    suspicion = B.clamp(suspicion + suspicion_delta, 0.0, B.SUSPICION_MAX)
+    suspicion_pre = suspicion  # 冷却衰减前的值：用于满值判定（§8.4）
+    # 诱饵误报冷却期内额外加速衰减（§8.4：−0.05 点/s）
+    if cooldown_active:
+        suspicion = B.clamp(suspicion - B.DECOY_COOLDOWN_DECAY_PER_SEC * elapsed, 0.0, B.SUSPICION_MAX)
+
+    # ---- 满警戒度三级安防预案（§8.3，零弹窗自动处置）----
+    rules = {
+        "p1_use_decoy": bool(policy.get("p1_use_decoy", True)),
+        "p2_use_vehicle": bool(policy.get("p2_use_vehicle", True)),
+        "p3_go_dark": bool(policy.get("p3_go_dark", True)),
+    }
+    if suspicion_pre >= B.SUSPICION_MAX:
+        if cooldown_active:
+            report["security_events"].append({"type": "ALERT_SUPPRESSED", "reason": "FALSE_ALARM_COOLDOWN"})
+        elif rules["p1_use_decoy"] and decoy_count > 0:
+            decoy_count -= 1
+            suspicion = max(0.0, suspicion - B.DECOY_SUSPICION_REDUCTION)
+            cooldown_until = now_ts + B.DECOY_FALSE_ALARM_COOLDOWN_SECONDS
+            report["security_events"].append(
+                {"type": "DECOY_TRIGGERED", "decoy_left": decoy_count, "suspicion": round(suspicion, 2)}
+            )
+            report["notes"].append(
+                f"发条机械鼠弹射：警戒度 −{B.DECOY_SUSPICION_REDUCTION:.0f}，"
+                f"进入 {int(B.DECOY_FALSE_ALARM_COOLDOWN_SECONDS // 60)} 分钟误报冷却"
+            )
+        elif rules["p2_use_vehicle"] and _int(current_state.get("idle_vehicles", 0)) > 0:
+            # 战车截杀需要战斗引擎（模块 G）：如实记录，不伪造胜负
+            report["security_events"].append({"type": "P2_PENDING", "reason": "COMBAT_ENGINE_NOT_READY"})
+            report["notes"].append("满警戒度：战车截杀需战斗引擎（模块 G），本段先按静默关灯处置")
+            if rules["p3_go_dark"]:
+                go_dark = True
+                report["security_events"].append({"type": "GO_DARK_START"})
+        elif rules["p3_go_dark"]:
+            go_dark = True
+            report["security_events"].append({"type": "GO_DARK_START"})
+        else:
+            report["security_events"].append({"type": "ALERT_ONLY", "reason": "SECURITY_POLICY_OFF"})
+            report["notes"].append("警戒度满 100：安防预案全部关闭，仅记录告警（需手动处理）")
+
+    if go_dark and suspicion <= B.GO_DARK_RECOVER_THRESHOLD:
+        go_dark = False
+        report["security_events"].append({"type": "GO_DARK_END", "suspicion": round(suspicion, 2)})
+        report["notes"].append("静默期结束：警戒度已跌回安全线，全员复工")
+    report["decoy_count"] = decoy_count
+    report["go_dark"] = go_dark
+    report["false_alarm_cooldown_until"] = cooldown_until or None
     report["suspicion_delta"] = round(suspicion - _num(current_state.get("suspicion")), PROGRESS_PRECISION)
     if suspicion >= B.SUSPICION_MAX:
         report["notes"].append("警戒度已达 100：进入侦察扫地机扫描判定（三级安防预案见模块 F）")
@@ -347,6 +412,9 @@ def calculate_offline_progress(
         "birth_progress": round(birth_progress, PROGRESS_PRECISION),
         "battery_kwh": round(battery_kwh, RESOURCE_PRECISION),
         "suspicion": round(suspicion, PROGRESS_PRECISION),
+        "decoy_count": decoy_count,
+        "go_dark": go_dark,
+        "false_alarm_cooldown_until": cooldown_until or None,
     }
     return report
 

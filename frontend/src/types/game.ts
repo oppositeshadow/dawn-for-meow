@@ -43,6 +43,14 @@ export interface SuspicionState {
   max: number
 }
 
+export interface SecurityState {
+  decoy_count: number
+  cooldown_until: number | null
+  cooldown_left_seconds: number
+  go_dark: boolean
+  policy: Record<string, boolean>
+}
+
 export interface OfflineReport {
   elapsed_seconds: number
   applied_seconds: number
@@ -73,6 +81,7 @@ export interface ColonyStateData {
   workstation_limits: Record<string, number>
   facilities: Record<string, number>
   suspicion: SuspicionState
+  security: SecurityState
   offline_report: OfflineReport
 }
 

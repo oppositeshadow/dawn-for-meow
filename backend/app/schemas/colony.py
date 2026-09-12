@@ -54,6 +54,16 @@ class SuspicionBlock(BaseModel):
     max: float = 100.0
 
 
+class SecurityBlock(BaseModel):
+    """三级安防预案状态（模块 F）。"""
+
+    decoy_count: int = 0
+    cooldown_until: int | None = None
+    cooldown_left_seconds: int = 0
+    go_dark: bool = False
+    policy: dict[str, bool] = Field(default_factory=dict)
+
+
 class OfflineReport(BaseModel):
     """《离线休整报表》（A-1 ~ A-6 的可观测字段）。"""
 
@@ -86,6 +96,7 @@ class ColonyStateData(BaseModel):
     workstation_limits: dict[str, int]
     facilities: dict[str, int]
     suspicion: SuspicionBlock
+    security: SecurityBlock = SecurityBlock()
     offline_report: OfflineReport
 
 

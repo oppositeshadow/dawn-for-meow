@@ -238,7 +238,8 @@ class TestSnapshotReconciliation:
 
         await client.post(SNAPSHOT_URL, json={"slot": 1})
         await session.refresh(colony)
-        assert colony.catnip == pytest.approx(first, abs=0.05)  # 毫秒级间隔不再累加
+        # 时间戳是整秒粒度，两次快照最多跨 1 秒 ⇒ 容忍 0.15/s × 1s 的粒度误差
+        assert colony.catnip == pytest.approx(first, abs=0.2)
 
 
 class TestWorkstationGuard:

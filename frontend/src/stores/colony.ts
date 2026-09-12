@@ -11,6 +11,7 @@ import type {
   PopulationState,
   Resources,
   SuspicionState,
+  SecurityState,
 } from '@/types/game'
 import { DISPLAY_BALANCE, clamp } from '@/utils/balance'
 import { clockText } from '@/utils/format'
@@ -63,6 +64,13 @@ export const useColonyStore = defineStore('colony', () => {
   const workstationLimits = ref<Record<string, number>>({})
   const facilities = ref<Record<string, number>>({})
   const suspicion = ref<SuspicionState>({ current: 0, max: 100 })
+  const security = ref<SecurityState>({
+    decoy_count: 0,
+    cooldown_until: null,
+    cooldown_left_seconds: 0,
+    go_dark: false,
+    policy: {},
+  })
   const policy = ref<HysteresisPolicy | null>(null)
   const offlineReport = ref<OfflineReport | null>(null)
   const lastTickTime = ref(0)
@@ -125,6 +133,7 @@ export const useColonyStore = defineStore('colony', () => {
     workstationLimits.value = data.workstation_limits
     facilities.value = data.facilities
     suspicion.value = data.suspicion
+    security.value = data.security ?? security.value
     offlineReport.value = data.offline_report
     lastTickTime.value = data.last_tick_time
     lastSyncAt.value = Date.now()
@@ -293,6 +302,7 @@ export const useColonyStore = defineStore('colony', () => {
     workstationLimits,
     facilities,
     suspicion,
+    security,
     policy,
     offlineReport,
     lastTickTime,

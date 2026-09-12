@@ -43,6 +43,13 @@ const suspicionTone = computed<'accent' | 'warn' | 'crit'>(() => {
       <span class="text-[10px] text-terminal-dim">
         实值 {{ colony.localSuspicion.toFixed(2) }} / 100
       </span>
+      <Badge v-if="colony.security.go_dark" text="静默关灯中" tone="crit" />
+      <template v-else-if="colony.security.cooldown_left_seconds > 0">
+        <Badge :text="`误报冷却 ${Math.ceil(colony.security.cooldown_left_seconds / 60)} 分`" tone="warn" />
+      </template>
+      <span class="text-[10px] text-terminal-dim">
+        诱饵 {{ colony.security.decoy_count }}
+      </span>
     </div>
 
     <div class="flex items-center gap-2">
