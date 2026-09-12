@@ -120,6 +120,25 @@ cd frontend && npm run build
 
 ## 📝 修订记录
 
+## 📦 存档（git）
+
+仓库就在本目录（首个提交见 `git log`）。**在 Codex 里要这样跑 git**：
+
+> 新版 Codex（Windows，app 26.903.x）把命令放进一个**独立受限用户**（`CodexSandboxOnline`）里执行，
+> 而工作区属主是你的 `os`。若在沙箱内 `git init`，`.git` 会属于沙箱用户 → git 报 dubious ownership，
+> 更糟的是**沙箱 helper 的启动自检会卡死**，导致该会话所有命令失效（表现为 `helper_unknown_error: setup refresh had errors`）。
+
+因此：
+
+* **在 Codex 里让鱼鱼执行 git 时，走一次"沙箱外授权"**（`require_escalated`）——`.git` 属主就是 `os`，一切正常；
+* 或**你自己在普通终端里跑 git**（同样是 `os` 身份），行为与从前一致；
+* 或在 app 设置 / `~/.codex/config.toml` 把 `sandbox_mode` 改为 `danger-full-access`（命令不再走受限用户，恢复旧行为；代价是没有沙箱保护）；
+* **千万不要**让沙箱内的命令去 `git init`（会连累整个会话）。
+
+`git status` 之前记得带上 `-c safe.directory=E:/tmp/dawn-for-meow`（历史上目录属主与 git 进程身份不一致时会用到）。
+
+---
+
 | 版本 | 日期 | 内容 |
 | :--- | :--- | :--- |
 | v1.0 | 2026-09-12 | 建立项目说明、文档导航、技术栈与（规划中的）启动方式；明确声明当前处于设计阶段 |
