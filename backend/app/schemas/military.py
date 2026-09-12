@@ -54,3 +54,26 @@ class ExpeditionCollectRequest(BaseModel):
 class MilitaryEnvelope(BaseModel):
     code: int = 200
     data: dict[str, Any]
+
+
+class TacticalActionRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    slot: int = Field(default=1, ge=1, le=3)
+    planet_id: int = Field(default=0, ge=0, le=3)
+    command: str = Field(description="OVERCLOCK / EMP / EJECT")
+
+
+class AmbushConvoyRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    slot: int = Field(default=1, ge=1, le=3)
+    planet_id: int = Field(default=0, ge=0, le=3)
+    unit_ids: list[int] = Field(min_length=1, max_length=8)
+
+
+class MissileRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    slot: int = Field(default=1, ge=1, le=3)
+    planet_id: int = Field(default=0, ge=0, le=3)

@@ -5,12 +5,15 @@ import { Crosshair, ShieldAlert, Truck, Wrench, PackageCheck } from 'lucide-vue-
 import Badge from '@/components/common/Badge.vue'
 import GaugeBar from '@/components/common/GaugeBar.vue'
 import { useMilitaryStore } from '@/stores/military'
+import { useColonyStore } from '@/stores/colony'
 import type { VehicleView } from '@/types/game'
 
 const military = useMilitaryStore()
+const colonyStore = useColonyStore()
 const selectedType = ref('light_car')
 const selectedTarget = ref('WALMART')
 const pickedUnits = ref<number[]>([])
+const ambushUnits = ref<number[]>([])
 
 onMounted(() => {
   military.startPolling(5000)
@@ -57,6 +60,17 @@ function togglePick(unitId: number) {
   pickedUnits.value = pickedUnits.value.includes(unitId)
     ? pickedUnits.value.filter((id) => id !== unitId)
     : [...pickedUnits.value, unitId]
+}
+
+function toggleAmbush(unitId: number) {
+  ambushUnits.value = ambushUnits.value.includes(unitId)
+    ? ambushUnits.value.filter((id) => id !== unitId)
+    : [...ambushUnits.value, unitId]
+}
+
+const tacticalLabel: Record<string, string> = {
+  OVERCLOCK: '过载超频',
+  EMP: '电磁脉冲',
 }
 </script>
 
@@ -179,6 +193,69 @@ function togglePick(unitId: number) {
         <div v-for="item in view?.hospital_queue ?? []" :key="item.unit_id" class="flex items-center gap-2 text-[11px]">
           <span>乘员 {{ item.cats }} 只休养中</span>
           <span class="ml-auto text-terminal-dim">归队 {{ remaining(item.ends_at) }}</span>
+        </div>
+      </div>
+
+      <!-- 战术指令与破壁工程 -->
+      <div class="space-y-1 border-t border-terminal-line pt-2">
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="text-terminal-dim">战术电力（蓄电池 {{ colonyStore.power.battery_kwh.toFixed(0) }} kWh）</span>
+          <Badge
+            v-if="view?.tactical_buff"
+            :text="`${tacticalLabel[view.tactical_buff.command] ?? view.tactical_buff.command} 待生效`"
+            tone="warn"
+          />
+        </div>
+        <div class="flex gap-1">
+          <button class="btn px-1.5 py-0" :disabled="military.busy" @click="military.tacticalAction('OVERCLOCK')">
+            过载超频（20kWh）
+          </button>
+          <button class="btn px-1.5 py-0" :disabled="military.busy" @click="military.tacticalAction('EMP')">
+            电磁脉冲（15kWh）
+          </button>
+          <button class="btn px-1.5 py-0" :disabled="military.busy" @click="military.tacticalAction('EJECT')">
+            紧急弹射撤离
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="text-terminal-dim">
+            欧米茄车队：{{ view?.convoy_ends_at ? `到港 ${remaining(view.convoy_ends_at)}` : '在采矿区装货' }}
+          </span>
+          <Badge v-if="view?.factory_frozen_until && view.factory_frozen_until > military.now" :text="`兵工厂停工 ${remaining(view.factory_frozen_until)}`" tone="warn" />
+          <span class="ml-auto text-[10px] text-terminal-dim">威胁 Lv.{{ view?.threat_level ?? 1 }} · rage {{ (view?.rage ?? 0).toFixed(0) }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <label v-for="vehicle in military.idleVehicles" :key="`ambush-${vehicle.unit_id}`" class="flex items-center gap-1 text-[11px]">
+            <input
+              type="checkbox"
+              class="accent-terminal-accent"
+              :checked="ambushUnits.includes(vehicle.unit_id)"
+              @change="toggleAmbush(vehicle.unit_id)"
+            />
+            {{ vehicle.nickname ?? vehicle.unit_name }}
+          </label>
+          <button
+            class="btn px-1.5 py-0"
+            :disabled="military.busy || ambushUnits.length === 0 || !view?.convoy_ends_at"
+            @click="military.ambush(ambushUnits); ambushUnits = []"
+          >
+            伏击车队
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="text-terminal-dim">巡航导弹 {{ view?.cruise_missiles ?? 0 }} 枚</span>
+          <button class="btn px-1.5 py-0" :disabled="military.busy" @click="military.assembleMissile()">
+            总装（合金 30 + 芯片 10 + 电池 2）
+          </button>
+          <button
+            class="btn btn-primary px-1.5 py-0"
+            :disabled="military.busy || !view?.cruise_missiles"
+            @click="military.launchMissile()"
+          >
+            点火发射
+          </button>
         </div>
       </div>
     </div>

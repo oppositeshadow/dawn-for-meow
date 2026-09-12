@@ -272,6 +272,11 @@ export interface HangarView {
   laser_turrets: number
   cruise_missiles: number
   decoy_count: number
+  tactical_buff: { command: string; expires_at: number } | null
+  convoy_ends_at: number | null
+  factory_frozen_until: number | null
+  threat_level: number
+  rage: number
   hospital_queue: HospitalEntry[]
   active_expeditions: ExpeditionEntry[]
   vehicles: VehicleView[]

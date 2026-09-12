@@ -169,6 +169,58 @@ export const useMilitaryStore = defineStore('military', () => {
     )
   }
 
+  const tacticalAction = (command: 'OVERCLOCK' | 'EMP' | 'EJECT') =>
+    run(
+      '战术指令',
+      () => request<{ data: Record<string, any> }>('/military/tactical-action', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId, command }),
+      }),
+      (result) => {
+        const data = result.data
+        colony.log(
+          data.command === 'EJECT'
+            ? `紧急弹射撤离：${data.recalled} 支编队返航，回收残骸 ${costText(data.refund)}`
+            : `战术指令 ${data.command}：耗电 ${data.cost_kwh} kWh（下场交火生效）`,
+        )
+      },
+    )
+
+  const ambush = (unitIds: number[]) =>
+    run(
+      '伏击车队',
+      () => request<{ data: Record<string, any> }>('/military/ambush-convoy', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId, unit_ids: unitIds }),
+      }),
+      (result) => {
+        const data = result.data
+        for (const line of data.events ?? []) colony.log(String(line), data.won ? 'info' : 'warn')
+      },
+    )
+
+  const assembleMissile = () =>
+    run(
+      '总装巡航导弹',
+      () => request<{ data: Record<string, any> }>('/military/assemble-missile', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId }),
+      }),
+      (result) => colony.log(`巡航导弹总装完成（库存 ${result.data.cruise_missiles} 枚，花费 ${costText(result.data.cost_paid)}）`),
+    )
+
+  const launchMissile = () =>
+    run(
+      '发射巡航导弹',
+      () => request<{ data: Record<string, any> }>('/military/launch-missile', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId }),
+      }),
+      (result) => {
+        for (const line of result.data.events ?? []) colony.log(String(line), 'warn')
+      },
+    )
+
   function startPolling(intervalMs = 5000) {
     if (pollTimer !== null) return
     now.value = Math.floor(Date.now() / 1000)
@@ -200,6 +252,10 @@ export const useMilitaryStore = defineStore('military', () => {
     scrap,
     dispatch,
     collect,
+    tacticalAction,
+    ambush,
+    assembleMissile,
+    launchMissile,
     startPolling,
     stopPolling,
   }

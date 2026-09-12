@@ -58,7 +58,8 @@ RESOURCE_CAPS: dict[str, float] = {
     "catnip": 200.0,
     "scrap": 200.0,
     "chips": 100.0,
-    "alloys": 50.0,
+    # v1.10：合金上限 50 → 200（必须高于装甲猫车 100 / 破拆机甲 200 的造价，见《数值平衡表》§3.3）
+    "alloys": 200.0,
     "battery": 50.0,
     "lube": 50.0,
 }
@@ -440,6 +441,26 @@ EXPEDITION_TARGETS: dict[str, dict] = {
 
 #: 逆向拆解返还比例（退役/拆解只回收一半材料）
 VEHICLE_SCRAP_REFUND_RATIO = 0.5
+
+#: 战术电力指令（§9/GDD §7.5）：超频 20kWh / EMP 15kWh / 弹射 0
+TACTICAL_OVERCLOCK_SECONDS = 10.0
+TACTICAL_OVERCLOCK_DPS_BONUS = 0.5      # 10 秒内射速与暴击率 +50%（折算成 DPS 倍率）
+TACTICAL_EMP_STUN_SECONDS = 4.0          # 强制瘫痪敌方 4 秒（跳过 4 回合反击）
+TACTICAL_EJECT_DEBRIS_RATIO = 0.5        # 主动弹射撤离：回收 50% 造价残骸
+
+#: 欧米茄后台物流（§G2）：车队班次 20~30 分钟，伏击成功断料停工 30~60 分钟
+CONVOY_INTERVAL_MIN_SECONDS = 1200.0
+CONVOY_INTERVAL_MAX_SECONDS = 1800.0
+CONVOY_LOOT: dict[str, float] = {"alloys": 25.0, "chips": 12.0}
+CONVOY_FACTORY_FREEZE_MIN_SECONDS = 1800.0
+CONVOY_FACTORY_FREEZE_MAX_SECONDS = 3600.0
+CONVOY_GUARD_UNITS: tuple[str, ...] = ("heavy_cleaner_03", "scout_roomba")
+CONVOY_REQUIRED_UNIT_TYPES: tuple[str, ...] = ("armored_car", "breaker_mech")
+
+#: 战略巡航导弹（§9.9 编码落地补充）：总装造价与发射效果
+MISSILE_ASSEMBLE_COST: dict[str, float] = {"alloys": 30.0, "chips": 10.0, "battery": 2.0}
+MISSILE_LAUNCH_RAGE_GAIN = 40.0          # 惊动欧米伽：发射后通缉热度 +40
+MISSILE_LAUNCH_INTEL_GAIN = 20.0         # 情报破译度 +20%（要塞结构被摸清）
 
 #: 乘员休养与维修（§9.6）
 VEHICLE_REPAIR_COST_RATIO = 0.50

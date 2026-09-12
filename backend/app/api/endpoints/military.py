@@ -16,9 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import balance as B
 from app.core.database import get_session
 from app.schemas.military import (
+    AmbushConvoyRequest,
     ExpeditionCollectRequest,
     ExpeditionDispatchRequest,
     MilitaryEnvelope,
+    MissileRequest,
+    TacticalActionRequest,
     VehicleAssembleRequest,
     VehicleModifyRequest,
     VehicleRepairRequest,
@@ -112,5 +115,49 @@ async def post_military_collect(
         expedition_id=payload.expedition_id,
         slot_id=payload.slot,
         planet_id=payload.planet_id,
+    )
+    return MilitaryEnvelope(code=200, data=data)
+
+
+@router.post("/military/tactical-action", response_model=MilitaryEnvelope)
+async def post_tactical_action(
+    payload: TacticalActionRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    data = await combat_service.tactical_action(
+        session, command=payload.command, slot_id=payload.slot, planet_id=payload.planet_id
+    )
+    return MilitaryEnvelope(code=200, data=data)
+
+
+@router.post("/military/ambush-convoy", response_model=MilitaryEnvelope)
+async def post_ambush_convoy(
+    payload: AmbushConvoyRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    data = await combat_service.ambush_convoy(
+        session, unit_ids=payload.unit_ids, slot_id=payload.slot, planet_id=payload.planet_id
+    )
+    return MilitaryEnvelope(code=200, data=data)
+
+
+@router.post("/military/assemble-missile", response_model=MilitaryEnvelope)
+async def post_assemble_missile(
+    payload: MissileRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    data = await combat_service.assemble_missile(
+        session, slot_id=payload.slot, planet_id=payload.planet_id
+    )
+    return MilitaryEnvelope(code=200, data=data)
+
+
+@router.post("/military/launch-missile", response_model=MilitaryEnvelope)
+async def post_launch_missile(
+    payload: MissileRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    data = await combat_service.launch_missile(
+        session, slot_id=payload.slot, planet_id=payload.planet_id
     )
     return MilitaryEnvelope(code=200, data=data)

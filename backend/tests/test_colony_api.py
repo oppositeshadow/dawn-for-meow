@@ -68,7 +68,8 @@ class TestColonyState:
         assert report["gained_catnip"] == 0.0
         assert report["gained_scrap"] == 0.0
         assert report["is_starved"] is False
-        assert any("无离线收益" in note for note in report["notes"])
+        # 时间戳是整秒粒度：两次读档最多跨 1 秒（空档位无产出，所以收益依然为 0）
+        assert report["elapsed_seconds"] <= 1.0
 
     async def test_offline_settlement_applied_on_load(self, client, session):
         """A-1：离线 600 秒 ⇒ 猫薄荷 +90（0.15/s），last_tick_time 刷新为现在。"""

@@ -100,6 +100,8 @@ def resolve_skirmish(
     defenders: Sequence[dict[str, Any]],
     *,
     attacker_morale: float = 1.0,
+    attacker_dps_bonus: float = 0.0,
+    defender_stun_rounds: int = 0,
     max_rounds: int = B.COMBAT_MAX_ROUNDS,
 ) -> dict[str, Any]:
     """一次完整交战（每回合 1 秒，双方集火各自最前的存活目标）。
@@ -109,6 +111,8 @@ def resolve_skirmish(
     log: list[str] = []
     for unit in attackers:
         unit["morale"] = attacker_morale
+        if attacker_dps_bonus:
+            unit["dps"] = float(unit.get("dps", 0.0)) * (1.0 + attacker_dps_bonus)
 
     rounds = 0
     while rounds < max_rounds and any(is_alive(u) for u in attackers) and any(is_alive(u) for u in defenders):
@@ -134,7 +138,7 @@ def resolve_skirmish(
                     break
         # 守方反击
         attacker_target = next((u for u in attackers if is_alive(u)), None)
-        if attacker_target is not None:
+        if attacker_target is not None and rounds > defender_stun_rounds:
             for defender in defenders:
                 if not is_alive(defender):
                     continue
@@ -150,6 +154,8 @@ def resolve_skirmish(
                     )
                 if ejected:
                     break
+        elif attacker_target is not None and rounds == defender_stun_rounds:
+            log.append(f"R{rounds} 电磁脉冲生效：敌方瘫痪 {defender_stun_rounds} 秒，本轮无法反击")
 
     attackers_alive = any(is_alive(u) for u in attackers)
     defenders_alive = any(is_alive(u) for u in defenders)

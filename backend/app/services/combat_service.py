@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import balance as B
 from app.core.combat_engine import combat_power, morale_multiplier, resolve_skirmish, unit_from_spec
 from app.core.errors import BadRequest, Conflict, InsufficientResource, NotFound
-from app.models import ColonyState, LaborBucket, MilitaryState, VehicleUnit
+from app.models import BossState, ColonyState, LaborBucket, MilitaryState, VehicleUnit
 from app.models.military import VehicleStatus
 from app.services.game_init_service import now_timestamp
 
@@ -86,12 +86,19 @@ async def list_hangar(
 ) -> dict[str, Any]:
     military = await _military(session, slot_id, planet_id)
     rows = await _vehicles(session, slot_id, planet_id)
+    boss = await session.get(BossState, slot_id)
+    policy = dict(military.security_policy or {})
     return {
         "hangar_capacity": int(military.hangar_capacity),
         "hangar_used": _used_hangar_slots(rows),
         "laser_turrets": int(military.laser_turrets),
         "cruise_missiles": int(military.cruise_missiles),
         "decoy_count": int(military.decoy_count),
+        "tactical_buff": policy.get("tactical"),
+        "convoy_ends_at": int(boss.convoy_ends_at) if boss and boss.convoy_ends_at else None,
+        "factory_frozen_until": int(boss.factory_frozen_until) if boss and boss.factory_frozen_until else None,
+        "threat_level": int(boss.threat_level) if boss else 1,
+        "rage": float(boss.rage) if boss else 0.0,
         "hospital_queue": list(military.hospital_queue or []),
         "active_expeditions": list(military.active_expeditions or []),
         "vehicles": [vehicle_view(row) for row in rows],
@@ -425,8 +432,290 @@ async def advance_military(
         else:
             remaining.append(item)
     military.hospital_queue = remaining
+
+    # 欧米茄后台物流：车队班次到点就发下一班（20~30 分钟一班，确定性取模）
+    boss = await session.get(BossState, slot_id)
+    if boss is not None and (boss.convoy_ends_at is None or now >= int(boss.convoy_ends_at)):
+        span = B.CONVOY_INTERVAL_MAX_SECONDS - B.CONVOY_INTERVAL_MIN_SECONDS
+        boss.convoy_ends_at = now + int(B.CONVOY_INTERVAL_MIN_SECONDS + (now % int(span + 1)))
+        events.append("欧米茄矿石车队已发车，进入下一班倒计时")
     await session.flush()
     return {"events": events, "hospital_remaining": len(remaining)}
+
+
+# ----------------------------------------------------------------------
+# 战术电力指令（模块 G4）
+# ----------------------------------------------------------------------
+async def tactical_action(
+    session: AsyncSession,
+    *,
+    command: str,
+    slot_id: int = B.DEFAULT_SLOT_ID,
+    planet_id: int = B.HOME_PLANET_ID,
+) -> dict[str, Any]:
+    """超频 / 电磁脉冲 / 紧急弹射。
+
+    * 超频与 EMP 是**短时效战术增益**，由紧接着的那一场交火消耗（10 秒窗口内有效）；
+    * 弹射撤离不消耗电力，让所有在途远征立即返航并回收 50% 造价残骸（乘员安全）。
+    """
+    command = command.upper()
+    colony = await session.get(ColonyState, (slot_id, planet_id))
+    military = await _military(session, slot_id, planet_id)
+    now = now_timestamp()
+
+    if command == "EJECT":
+        expeditions = [dict(item) for item in (military.active_expeditions or [])]
+        active = [item for item in expeditions if not item.get("collected")]
+        if not active:
+            raise Conflict("NO_ACTIVE_BATTLE", "当前没有在途编队可以撤离")
+        refunds: dict[str, float] = {}
+        for entry in active:
+            entry["collected"] = True
+            for unit_id in entry.get("unit_ids", []):
+                unit = await session.get(VehicleUnit, unit_id)
+                if unit is None:
+                    continue
+                spec = B.VEHICLE_TYPES[unit.unit_type]
+                for resource, need in spec["cost"].items():
+                    refunds[resource] = refunds.get(resource, 0.0) + float(need) * B.TACTICAL_EJECT_DEBRIS_RATIO
+                unit.status = VehicleStatus.IDLE
+                unit.expedition_id = None
+        military.active_expeditions = expeditions
+        for resource, amount in refunds.items():
+            cap = float(getattr(colony, f"{resource}_max"))
+            setattr(
+                colony,
+                resource,
+                round(min(cap, float(getattr(colony, resource)) + amount), RESOURCE_PRECISION),
+            )
+        await session.commit()
+        return {
+            "command": command,
+            "cost_kwh": 0.0,
+            "recalled": len(active),
+            "refund": {key: round(value, RESOURCE_PRECISION) for key, value in refunds.items()},
+            "battery_kwh": round(float(colony.battery_kwh), RESOURCE_PRECISION),
+        }
+
+    cost = B.TACTICAL_COMMAND_COST_KWH.get(command)
+    if cost is None:
+        raise BadRequest("BAD_REQUEST", f"未知战术指令 {command}")
+    if float(colony.battery_kwh) < cost:
+        raise InsufficientResource(
+            detail=f"蓄电池电量不足：需要 {cost:g} kWh，当前 {float(colony.battery_kwh):.1f} kWh"
+        )
+    colony.battery_kwh = round(float(colony.battery_kwh) - cost, RESOURCE_PRECISION)
+    policy = dict(military.security_policy or {})
+    window = B.TACTICAL_OVERCLOCK_SECONDS if command == "OVERCLOCK" else B.TACTICAL_EMP_STUN_SECONDS
+    policy["tactical"] = {"command": command, "expires_at": now + int(max(window, 10))}
+    military.security_policy = policy
+    colony.power_net = round(float(colony.power_net), 4)
+    await session.commit()
+    logger.info("战术指令：slot=%s command=%s cost=%skWh", slot_id, command, cost)
+    return {
+        "command": command,
+        "cost_kwh": cost,
+        "battery_kwh": round(float(colony.battery_kwh), RESOURCE_PRECISION),
+        "buff_expires_at": policy["tactical"]["expires_at"],
+    }
+
+
+def _consume_tactical_buff(military: MilitaryState, now: int) -> dict[str, Any] | None:
+    """取出未过期的战术增益并清空（一场交火只能吃一次）。"""
+    policy = dict(military.security_policy or {})
+    buff = policy.get("tactical")
+    if not buff:
+        return None
+    policy.pop("tactical", None)
+    military.security_policy = policy
+    if int(buff.get("expires_at", 0)) < now:
+        return None
+    return buff
+
+
+# ----------------------------------------------------------------------
+# 伏击欧米茄矿石车队（模块 G3）
+# ----------------------------------------------------------------------
+async def ambush_convoy(
+    session: AsyncSession,
+    *,
+    unit_ids: list[int],
+    slot_id: int = B.DEFAULT_SLOT_ID,
+    planet_id: int = B.HOME_PLANET_ID,
+) -> dict[str, Any]:
+    """派装甲猫车/破拆机甲拦截矿石车队：胜则掠夺 + 兵工厂断料停工 30~60 分钟。"""
+    military = await _military(session, slot_id, planet_id)
+    boss = await session.get(BossState, slot_id)
+    if boss is None or boss.convoy_ends_at is None:
+        raise Conflict("NO_CONVOY", "当前没有在途车队")
+    now = now_timestamp()
+    if now >= int(boss.convoy_ends_at):
+        raise Conflict("CONVOY_MISSED", "车队已经驶入兵工厂，本班次伏击窗口已关闭")
+    if not unit_ids:
+        raise BadRequest("BAD_REQUEST", "至少要派一辆载具")
+
+    vehicles: list[VehicleUnit] = []
+    for unit_id in unit_ids:
+        unit = await session.get(VehicleUnit, unit_id)
+        if unit is None or unit.slot_id != slot_id or unit.status == VehicleStatus.SCRAPPED:
+            raise NotFound("VEHICLE_NOT_FOUND", f"载具 {unit_id} 不存在")
+        if unit.status != VehicleStatus.IDLE:
+            raise Conflict("VEHICLE_BUSY", f"载具 {unit_id} 当前状态为 {unit.status.value}")
+        vehicles.append(unit)
+    types = {unit.unit_type for unit in vehicles}
+    if not types & set(B.CONVOY_REQUIRED_UNIT_TYPES):
+        names = "、".join(B.VEHICLE_TYPES[t]["name"] for t in B.CONVOY_REQUIRED_UNIT_TYPES)
+        raise BadRequest("BAD_REQUEST", f"伏击车队需要编入：{names}")
+
+    colony = await session.get(ColonyState, (slot_id, planet_id))
+    catnip_ratio = (
+        float(colony.catnip) / float(colony.catnip_max) if float(colony.catnip_max or 0) > 0 else 1.0
+    )
+    buff = _consume_tactical_buff(military, now)
+    dps_bonus = B.TACTICAL_OVERCLOCK_DPS_BONUS if buff and buff.get("command") == "OVERCLOCK" else 0.0
+    stun_rounds = (
+        int(B.TACTICAL_EMP_STUN_SECONDS) if buff and buff.get("command") == "EMP" else 0
+    )
+
+    attackers = []
+    for unit in vehicles:
+        spec = B.VEHICLE_TYPES[unit.unit_type]
+        snapshot = unit_from_spec(spec, prefix=f"unit-{unit.unit_id}")
+        snapshot.update(
+            {
+                "shield": float(unit.shield),
+                "armor": float(unit.armor),
+                "armor_max": float(unit.armor_max),
+                "hull": float(unit.hull),
+            }
+        )
+        attackers.append(snapshot)
+    defenders = [
+        unit_from_spec(B.ENEMY_UNITS[unit_id], prefix=f"enemy-{unit_id}")
+        for unit_id in B.CONVOY_GUARD_UNITS
+    ]
+
+    result = resolve_skirmish(
+        attackers,
+        defenders,
+        attacker_morale=morale_multiplier(catnip_ratio),
+        attacker_dps_bonus=dps_bonus,
+        defender_stun_rounds=stun_rounds,
+    )
+    won = result["winner"] == "ATTACK"
+    loot: dict[str, float] = {}
+    for unit, snapshot in zip(vehicles, result["attackers"]):
+        unit.shield = round(float(snapshot["shield"]), RESOURCE_PRECISION)
+        unit.armor = round(float(snapshot["armor"]), RESOURCE_PRECISION)
+        unit.armor_max = round(float(snapshot["armor_max"]), RESOURCE_PRECISION)
+        unit.hull = round(float(snapshot["hull"]), RESOURCE_PRECISION)
+        if unit.hull <= 0:
+            unit.status = VehicleStatus.REPAIR
+            crew = int(unit.crew_cats)
+            if crew:
+                unit.crew_cats = 0
+                queue = list(military.hospital_queue or [])
+                queue.append({"unit_id": unit.unit_id, "cats": crew, "ends_at": now + B.CREW_RECOVERY_BASE_SECONDS})
+                military.hospital_queue = queue
+                crew_bucket = await session.get(LaborBucket, (slot_id, planet_id, "crew"))
+                if crew_bucket is not None:
+                    crew_bucket.cat_count = max(0, int(crew_bucket.cat_count) - crew)
+                colony.job_idle = max(0, colony.job_idle - crew)
+
+    if won:
+        for resource, amount in B.CONVOY_LOOT.items():
+            cap = float(getattr(colony, f"{resource}_max"))
+            before = float(getattr(colony, resource))
+            setattr(colony, resource, round(min(cap, before + amount), RESOURCE_PRECISION))
+            loot[resource] = round(min(cap, before + amount) - before, RESOURCE_PRECISION)
+        freeze_span = B.CONVOY_FACTORY_FREEZE_MAX_SECONDS - B.CONVOY_FACTORY_FREEZE_MIN_SECONDS
+        freeze = B.CONVOY_FACTORY_FREEZE_MIN_SECONDS + (now % int(freeze_span + 1))
+        boss.factory_frozen_until = now + int(freeze)
+        boss.convoy_ends_at = None  # 车队被劫，等下一班
+        events = [f"伏击成功：缴获 {'、'.join(f'{k} +{v:g}' for k, v in loot.items())}，兵工厂断料停工 {freeze / 60:.0f} 分钟"]
+    else:
+        boss.convoy_ends_at = None  # 护卫突破拦截，继续驶向兵工厂
+        events = ["伏击失败：护卫编队突破拦截，车队继续驶向兵工厂（载具已进维修，乘员进急救舱）"]
+
+    await session.commit()
+    return {
+        "won": won,
+        "rounds": result["rounds"],
+        "loot": loot,
+        "factory_frozen_until": boss.factory_frozen_until if won else None,
+        "tactical_buff": buff,
+        "ejected": result["ejected"],
+        "log": result["log"][-12:],
+        "events": events,
+    }
+
+
+# ----------------------------------------------------------------------
+# 战略巡航导弹（模块 K1）
+# ----------------------------------------------------------------------
+async def assemble_missile(
+    session: AsyncSession,
+    *,
+    slot_id: int = B.DEFAULT_SLOT_ID,
+    planet_id: int = B.HOME_PLANET_ID,
+) -> dict[str, Any]:
+    """总装一枚地对地战略巡航导弹（合金 30 + 芯片 10 + 电池 2）。"""
+    military = await _military(session, slot_id, planet_id)
+    colony = await session.get(ColonyState, (slot_id, planet_id))
+    missing = {
+        resource: need - float(getattr(colony, resource))
+        for resource, need in B.MISSILE_ASSEMBLE_COST.items()
+        if float(getattr(colony, resource)) < need
+    }
+    if missing:
+        raise InsufficientResource(
+            detail="缺料：" + "、".join(f"{B.RESOURCE_LABELS.get(k, k)} 差 {v:g}" for k, v in missing.items())
+        )
+    for resource, need in B.MISSILE_ASSEMBLE_COST.items():
+        setattr(colony, resource, round(float(getattr(colony, resource)) - need, RESOURCE_PRECISION))
+    military.cruise_missiles = int(military.cruise_missiles) + 1
+    await session.commit()
+    return {
+        "cruise_missiles": int(military.cruise_missiles),
+        "cost_paid": dict(B.MISSILE_ASSEMBLE_COST),
+    }
+
+
+async def launch_missile(
+    session: AsyncSession,
+    *,
+    slot_id: int = B.DEFAULT_SLOT_ID,
+    planet_id: int = B.HOME_PLANET_ID,
+) -> dict[str, Any]:
+    """点火巡航导弹：摧毁除菌要塞能量穹顶与主反应堆（母星关底破壁）。"""
+    military = await _military(session, slot_id, planet_id)
+    if int(military.cruise_missiles) <= 0:
+        raise Conflict("NO_MISSILE", "机库里还没有总装好的巡航导弹")
+    boss = await session.get(BossState, slot_id)
+    if boss is None:
+        raise NotFound("BOSS_STATE_NOT_FOUND")
+    now = now_timestamp()
+    military.cruise_missiles = int(military.cruise_missiles) - 1
+    state = dict(boss.bombardment_state or {})
+    state["fortress_destroyed_at"] = now
+    boss.bombardment_state = state
+    boss.threat_level = max(1, int(boss.threat_level) - 1)
+    boss.fleet_strength = round(float(boss.fleet_strength) * 0.8, 2)
+    boss.rage = round(min(B.SUSPICION_MAX, float(boss.rage) + B.MISSILE_LAUNCH_RAGE_GAIN), 2)
+    boss.intel_level = round(min(1.0, float(boss.intel_level) + B.MISSILE_LAUNCH_INTEL_GAIN / 100), 4)
+    await session.commit()
+    return {
+        "cruise_missiles": int(military.cruise_missiles),
+        "fortress_destroyed_at": now,
+        "threat_level": int(boss.threat_level),
+        "fleet_strength": float(boss.fleet_strength),
+        "rage": float(boss.rage),
+        "intel_level": float(boss.intel_level),
+        "events": [
+            "巡航导弹点火：除菌要塞能量穹顶与主反应堆被摧毁",
+            f"欧米伽通缉热度 +{B.MISSILE_LAUNCH_RAGE_GAIN:.0f}，核心舰队战力 −20%",
+        ],
+    }
 
 
 # ----------------------------------------------------------------------
