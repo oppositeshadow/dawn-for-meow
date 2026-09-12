@@ -202,7 +202,8 @@ class TestNewGameInit:
         unlocked = [tile for tile in garden.grid_data if tile["unlocked"]]
         assert len(unlocked) == 9
         assert all(2 <= tile["x"] <= 4 and 2 <= tile["y"] <= 4 for tile in unlocked)
-        assert garden.unlocked_seed_ids == []
+        # 初始母本：普通猫薄荷（其余靠杂交突变解锁图鉴）
+        assert garden.unlocked_seed_ids == ["ordinary_moss"]
 
     async def test_minigame_rows_created(self, session):
         await create_new_game(session, 1, now=1_700_000_000)

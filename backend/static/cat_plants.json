@@ -1,0 +1,154 @@
+{
+  "version": "1.0",
+  "source": "数值平衡表.md §10（水培基因实验室）/ GDD §10 / WBS 模块 H",
+  "note": "猫草图鉴：四大职能流派的生长参数、突变链、在田光环与采摘变现。加新猫草只改本文件，不改表结构。",
+  "schools": {
+    "ECOLOGY": { "name": "生态温饱流", "tag": "🌿" },
+    "ENERGY": { "name": "能源与降噪流", "tag": "⚡" },
+    "MILITARY": { "name": "军备与防御流", "tag": "💣" },
+    "DARKNET": { "name": "暗网暴利流", "tag": "💰" }
+  },
+  "plants": [
+    {
+      "plant_id": "ordinary_moss",
+      "name": "普通猫薄荷",
+      "school": "ECOLOGY",
+      "growth_multiplier": 1.0,
+      "mutable_into": ["fat_cat_mint", "dew_grass", "glow_moss", "silent_grass"],
+      "harvest": { "catnip": 20 },
+      "halo": {},
+      "flavor": "避难所通风口边上自己长出来的野草，猫猫的起步口粮。"
+    },
+    {
+      "plant_id": "fat_cat_mint",
+      "name": "肥宅高能薄荷",
+      "school": "ECOLOGY",
+      "growth_multiplier": 1.2,
+      "mutable_into": ["dew_grass", "sugar_grass"],
+      "harvest": { "catnip": 60 },
+      "halo": { "breeding_rate_cap_bonus": 0.2 },
+      "flavor": "一棵顶十棵，猫猫吃完就在暖气片上摊成一张饼。"
+    },
+    {
+      "plant_id": "dew_grass",
+      "name": "露水草",
+      "school": "ECOLOGY",
+      "growth_multiplier": 1.1,
+      "mutable_into": ["sugar_grass", "echo_bloom"],
+      "harvest": { "catnip": 35 },
+      "halo": {},
+      "flavor": "叶尖挂着一层冷凝水，摘下来就是半碗汤。"
+    },
+    {
+      "plant_id": "sugar_grass",
+      "name": "糖分牧草",
+      "school": "ECOLOGY",
+      "growth_multiplier": 1.3,
+      "mutable_into": ["golden_grass"],
+      "harvest": { "catnip": 45 },
+      "halo": {},
+      "flavor": "甜得发腻，据说是人类当年给畜牧业准备的口粮配方。"
+    },
+    {
+      "plant_id": "glow_moss",
+      "name": "荧光苔藓",
+      "school": "ENERGY",
+      "growth_multiplier": 0.9,
+      "mutable_into": ["sun_lichen", "echo_bloom"],
+      "harvest": { "catnip": 15 },
+      "halo": { "power_kw": 5 },
+      "flavor": "在黑暗里泛着淡青色，一株就是一盏小夜灯——也是电。"
+    },
+    {
+      "plant_id": "silent_grass",
+      "name": "消音绒草",
+      "school": "ENERGY",
+      "growth_multiplier": 0.9,
+      "mutable_into": ["thorn_vine", "sun_lichen"],
+      "harvest": { "catnip": 10 },
+      "halo": { "suspicion_per_sec": -0.002 },
+      "flavor": "绒毛能吃掉机器噪音，天网听不见，猫猫睡得更香。"
+    },
+    {
+      "plant_id": "sun_lichen",
+      "name": "日照地衣",
+      "school": "ENERGY",
+      "growth_multiplier": 1.0,
+      "mutable_into": ["adamant_lichen"],
+      "harvest": { "catnip": 18 },
+      "halo": { "power_kw": 3 },
+      "flavor": "贴着集热板背面长，替人类省下了一片太阳能电池板。"
+    },
+    {
+      "plant_id": "spike_fruit",
+      "name": "爆裂刺果",
+      "school": "MILITARY",
+      "growth_multiplier": 1.1,
+      "mutable_into": ["thorn_vine", "ink_pod"],
+      "harvest": { "scrap": 15 },
+      "halo": { "decoy_cost_discount": 0.2 },
+      "flavor": "一碰就炸开，果壳正好做成发条机械鼠的弹簧。"
+    },
+    {
+      "plant_id": "thorn_vine",
+      "name": "铁线荆棘藤",
+      "school": "MILITARY",
+      "growth_multiplier": 1.0,
+      "mutable_into": ["adamant_lichen", "spike_fruit"],
+      "harvest": { "scrap": 20 },
+      "halo": { "patrol_delay": 0.3 },
+      "flavor": "藤蔓会拖住履带，欧米伽的地面巡逻队最讨厌它。"
+    },
+    {
+      "plant_id": "adamant_lichen",
+      "name": "金刚地衣",
+      "school": "MILITARY",
+      "growth_multiplier": 0.8,
+      "mutable_into": [],
+      "harvest": { "alloys": 2 },
+      "halo": { "vehicle_armor": 0.15 },
+      "flavor": "硬得能当装甲贴片，破拆机甲出厂前都要抹一层。"
+    },
+    {
+      "plant_id": "golden_grass",
+      "name": "精炼黄金草",
+      "school": "DARKNET",
+      "growth_multiplier": 1.4,
+      "mutable_into": ["ink_pod"],
+      "harvest": { "byte_credits": 200 },
+      "halo": {},
+      "flavor": "机器人为这株草开出四位数报价——它们缺的是润滑，不是金子。"
+    },
+    {
+      "plant_id": "echo_bloom",
+      "name": "回声花",
+      "school": "DARKNET",
+      "growth_multiplier": 1.1,
+      "mutable_into": ["data_vine", "golden_grass"],
+      "harvest": { "byte_credits": 60 },
+      "halo": {},
+      "flavor": "花瓣会重放一段旧广播，深网里有人专收这种杂音。"
+    },
+    {
+      "plant_id": "data_vine",
+      "name": "数据藤",
+      "school": "DARKNET",
+      "growth_multiplier": 1.2,
+      "mutable_into": ["golden_grass"],
+      "harvest": { "research_points": 40 },
+      "halo": {},
+      "flavor": "藤蔓的纹路像电路板，拿去做算力扩算正合适。"
+    },
+    {
+      "plant_id": "ink_pod",
+      "name": "墨囊果",
+      "school": "DARKNET",
+      "growth_multiplier": 1.0,
+      "mutable_into": ["data_vine"],
+      "harvest": { "byte_credits": 80 },
+      "halo": {},
+      "flavor": "挤出来的汁水能抹掉硬盘上的序列号，黑市硬通货。"
+    }
+  ],
+  "starter_seeds": ["ordinary_moss"]
+}

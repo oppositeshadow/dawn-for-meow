@@ -66,6 +66,7 @@ def power_balance(
     total_cats: int,
     *,
     induction_furnaces: int = 0,
+    garden_power_kw: float = 0.0,
 ) -> dict[str, Any]:
     """净电力平衡（kW，流量口径，数值平衡表 §7.1）。
 
@@ -75,6 +76,7 @@ def power_balance(
     gen = (
         _int(labor.get("power_runner", 0)) * B.POWER_RUNNER_KW
         + _int(facilities.get("solar_panel", 0)) * B.SOLAR_PANEL_KW
+        + _num(garden_power_kw)  # 在田光环：荧光苔藓 +5 kW/株
     )
     load = (
         _int(facilities.get("turing_terminal", 0)) * B.TURING_TERMINAL_LOAD_KW
@@ -99,6 +101,7 @@ def suspicion_rate_per_second(
     suspicion_growth_multiplier: float = 1.0,
     active_facilities: int | None = None,
     base_noise: float | None = None,
+    garden_suspicion_per_sec: float | None = None,
 ) -> float:
     """警戒度净变化率（点/s，数值平衡表 §8.2）。"""
     if active_facilities is None:
@@ -113,7 +116,10 @@ def suspicion_rate_per_second(
         rate += B.SUSPICION_EXPEDITION_PER_SEC
     else:
         rate -= B.SUSPICION_IDLE_DECAY_PER_SEC
-    rate += B.GARDEN_SILENT_GRASS_SUSPICION_PER_SEC * _int(silent_grass_count)
+    if garden_suspicion_per_sec is None:
+        rate += B.GARDEN_SILENT_GRASS_SUSPICION_PER_SEC * _int(silent_grass_count)
+    else:
+        rate += _num(garden_suspicion_per_sec)
     return rate
 
 
@@ -204,12 +210,16 @@ def calculate_offline_progress(
     cooldown_until = _int(current_state.get("false_alarm_cooldown_until", 0))
     go_dark = bool(current_state.get("go_dark", False))
     cooldown_active = bool(cooldown_until) and now_ts < cooldown_until
+    garden_power_kw = _num(current_state.get("garden_power_kw", 0.0))
+    garden_suspicion_raw = current_state.get("garden_suspicion_per_sec")
+    garden_suspicion_per_sec = None if garden_suspicion_raw is None else _num(garden_suspicion_raw)
 
     power = power_balance(
         facilities,
         labor,
         total_cats,
         induction_furnaces=_int(current_state.get("induction_furnaces", 0)),
+        garden_power_kw=garden_power_kw,
     )
 
     report: dict[str, Any] = {
@@ -322,6 +332,7 @@ def calculate_offline_progress(
         suspicion_growth_multiplier=suspicion_growth_multiplier,
         active_facilities=active_facilities,
         base_noise=0.0 if go_dark else None,
+        garden_suspicion_per_sec=garden_suspicion_per_sec,
     )
     # 断粮期间全员瘫软停工 ⇒ 设施噪音归 0，只剩基础噪音与自然衰减
     rate_starve = suspicion_rate_per_second(
@@ -331,6 +342,7 @@ def calculate_offline_progress(
         suspicion_growth_multiplier=suspicion_growth_multiplier,
         active_facilities=0,
         base_noise=0.0 if go_dark else None,
+        garden_suspicion_per_sec=garden_suspicion_per_sec,
     )
     suspicion_delta = rate_normal * normal_duration + rate_starve * starve_duration
     if go_dark:

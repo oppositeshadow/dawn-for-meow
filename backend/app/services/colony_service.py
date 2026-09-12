@@ -45,6 +45,7 @@ from app.core.seed_loader import facility_def_map
 from app.schemas.colony import SnapshotRequest
 from app.services import tech_service
 from app.services import combat_service
+from app.services import garden_service
 from app.services.game_init_service import create_new_game, now_timestamp
 
 logger = logging.getLogger("dawn_meow.colony")
@@ -177,6 +178,21 @@ async def count_idle_vehicles(session: AsyncSession, slot_id: int, planet_id: in
     return int(total.scalar_one())
 
 
+def garden_halo(garden: GardenState | None) -> dict[str, float]:
+    """在田光环汇总（模块 H）：荧光苔藓供电、消音绒草降警戒……"""
+    if garden is None or not garden.grid_data:
+        return {}
+    from app.core.garden_engine import halo_summary
+    from app.services.garden_service import plant_defs
+
+    return halo_summary(list(garden.grid_data), plant_defs())
+
+
+async def get_garden_power_kw(session: AsyncSession, slot_id: int, planet_id: int) -> float:
+    garden = await session.get(GardenState, (slot_id, planet_id))
+    return float(garden_halo(garden).get("power_kw", 0.0))
+
+
 # ----------------------------------------------------------------------
 # 工位上限（模块 C2 / D-2）
 # ----------------------------------------------------------------------
@@ -217,6 +233,7 @@ def build_engine_state(
 ) -> dict[str, Any]:
     """把 ORM 行摊平成离线引擎的输入（扁平字典，见 core/offline_engine 文档）。"""
     silent_grass = 0
+    halo: dict[str, float] = {}
     if garden is not None:
         # 在田光环（模块 H）：暂只统计"消音绒草"株数，其余光环由 garden_service 落地
         silent_grass = sum(
@@ -224,6 +241,7 @@ def build_engine_state(
             for tile in (garden.grid_data or [])
             if tile.get("seed_id") == "silent_grass" and tile.get("stage") != "WITHERED"
         )
+        halo = garden_halo(garden)
     return {
         "now": now if now is not None else now_timestamp(),
         "decoy_count": int(military.decoy_count) if military else 0,
@@ -260,6 +278,8 @@ def build_engine_state(
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
+        "garden_power_kw": float(halo.get("power_kw", 0.0)),
+        "garden_suspicion_per_sec": float(halo.get("suspicion_per_sec", 0.0)),
         "expedition_active": False,
     }
 
@@ -389,6 +409,20 @@ async def settle_offline(
                 "战车截杀："
                 + ("击退侦察扫地机，警报解除" if intercept["won"] else "载具受损，乘员已进急救舱（绝无死猫）")
             )
+    # 水培实验室离线生长（模块 H）：生长 / 枯萎 / 相邻突变 / 机械臂自动收割
+    garden_event = await garden_service.advance_garden(
+        session,
+        slot_id=save.slot_id,
+        planet_id=planet_id,
+        seconds=float(max(0, delta_seconds)),
+        now=now,
+    )
+    if garden_event["events"] or garden_event["harvests"]:
+        report.setdefault("garden_events", []).extend(garden_event["events"])
+        for line in garden_event["events"]:
+            report["notes"].append(line)
+        if garden_event["harvests"]:
+            report["notes"].append(f"机械臂自动收割 {garden_event['harvests']} 株成熟作物")
     save.playtime_seconds += max(0, int(delta_seconds))
     await _accumulate_career_stats(
         session, save.slot_id, report, elapsed_seconds=max(0, delta_seconds)
@@ -418,6 +452,7 @@ def build_state_payload(
     *,
     hangar_capacity: int,
     military: MilitaryState | None = None,
+    garden_power_kw: float = 0.0,
     now: int,
 ) -> dict[str, Any]:
     cooldown_until = int(report.get("false_alarm_cooldown_until") or 0)
@@ -428,6 +463,7 @@ def build_state_payload(
         facilities,
         {"power_runner": labor.get("power_runner", 0)},
         colony.total_cats,
+        garden_power_kw=garden_power_kw,
     )
     return {
         "slot_id": save.slot_id,
@@ -519,6 +555,7 @@ async def load_state(
         report,
         hangar_capacity=hangar,
         military=military,
+        garden_power_kw=await get_garden_power_kw(session, slot_id, target_planet),
         now=now,
     )
     await session.commit()
@@ -756,7 +793,12 @@ async def dispatch_labor(
     if policy is not None:
         colony.labor_automation_policy = dict(policy)
     colony.job_idle = max(0, colony.total_cats - sum(int(count) for count in labor.values()))
-    power = power_balance(facilities, {"power_runner": labor.get("power_runner", 0)}, colony.total_cats)
+    power = power_balance(
+        facilities,
+        {"power_runner": labor.get("power_runner", 0)},
+        colony.total_cats,
+        garden_power_kw=await get_garden_power_kw(session, slot_id, target_planet),
+    )
     colony.power_net = power["net_kw"]
     await session.commit()
 
@@ -856,7 +898,12 @@ async def build_facility(
 
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
     limits = B.workstation_limits(facilities, hangar_capacity=hangar)
-    power = power_balance(facilities, {"power_runner": labor.get("power_runner", 0)}, colony.total_cats)
+    power = power_balance(
+        facilities,
+        {"power_runner": labor.get("power_runner", 0)},
+        colony.total_cats,
+        garden_power_kw=await get_garden_power_kw(session, slot_id, target_planet),
+    )
     colony.power_net = power["net_kw"]
     colony.job_idle = max(0, colony.total_cats - sum(int(count_value) for count_value in labor.values()))
     await session.commit()

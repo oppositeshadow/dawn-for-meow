@@ -482,6 +482,9 @@ GARDEN_MEDIA: dict[str, dict] = {
 GARDEN_HALO_GLOW_MOSS_KW = 5.0                       # 荧光苔藓 +5 kW/株
 GARDEN_HALO_ADAMANT_LICHEN_ARMOR_BONUS = 0.15        # 金刚地衣 装甲 +15%
 GARDEN_GOLDEN_GRASS_BLACK_MARKET_PRICE = 200.0       # 黄金草 200 算力币/株
+#: 逐格扩建成本（编码落地补充：数值平衡表 §10 只规定"每次 +1 格"，成本沿用设施曲线形状）
+GARDEN_EXPANSION_BASE_COST: dict[str, float] = {"scrap": 15.0}
+GARDEN_EXPANSION_GROWTH = 1.15
 GARDEN_FAT_CAT_MINT_CATNIP_EQUIVALENT = 10           # 肥宅高能薄荷：1 棵顶 10 棵
 GARDEN_FAT_CAT_MINT_BREEDING_CAP_BONUS = 0.20        # 繁育 r 上限 +20%
 GARDEN_SPIKE_FRUIT_DECOY_DISCOUNT = 0.20             # 爆裂刺果：诱饵造价 −20%

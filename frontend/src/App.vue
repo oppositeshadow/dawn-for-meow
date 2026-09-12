@@ -9,6 +9,7 @@ import ThreatBar from '@/components/hud/ThreatBar.vue'
 import FacilitiesPanel from '@/components/panels/FacilitiesPanel.vue'
 import TechPanel from '@/components/panels/TechPanel.vue'
 import WarRoomPanel from '@/components/panels/WarRoomPanel.vue'
+import GardenPanel from '@/components/panels/GardenPanel.vue'
 import ProductionPanel from '@/components/panels/ProductionPanel.vue'
 import RadioTicker from '@/components/radio/RadioTicker.vue'
 import { useAutoSave } from '@/composables/useAutoSave'
@@ -24,6 +25,12 @@ useGameLoop()
 useAutoSave()
 
 const offlineOpen = ref(false)
+const leftTab = ref<'facilities' | 'tech' | 'garden'>('facilities')
+const leftTabs = [
+  { key: 'facilities' as const, label: '设施建造' },
+  { key: 'tech' as const, label: '科技树' },
+  { key: 'garden' as const, label: '猫草实验室' },
+]
 
 const coldStartSteps: Record<string, { title: string; body: string; action: string; run: () => void }> = {
   GATHER: {
@@ -94,8 +101,20 @@ onMounted(bootstrap)
 
     <main class="grid min-h-0 flex-1 grid-cols-12 gap-2">
       <div class="col-span-4 flex min-h-0 flex-col gap-2">
-        <FacilitiesPanel class="min-h-0 flex-1" />
-        <TechPanel class="min-h-0 flex-1" />
+        <div class="flex gap-1">
+          <button
+            v-for="tab in leftTabs"
+            :key="tab.key"
+            class="btn px-2 py-0.5"
+            :class="leftTab === tab.key ? 'btn-primary' : ''"
+            @click="leftTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+        <FacilitiesPanel v-if="leftTab === 'facilities'" class="min-h-0 flex-1" />
+        <TechPanel v-else-if="leftTab === 'tech'" class="min-h-0 flex-1" />
+        <GardenPanel v-else class="min-h-0 flex-1" />
       </div>
 
       <section class="panel col-span-5 flex min-h-0 flex-col">

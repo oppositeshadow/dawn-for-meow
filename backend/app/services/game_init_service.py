@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import balance as B
 from app.core.balance import RESOURCE_CAPS
 from app.core.errors import BadRequest, Conflict
-from app.core.seed_loader import minigame_defs, tech_defs_planet0
+from app.core.seed_loader import load_seed, minigame_defs, tech_defs_planet0
 from app.models import (
     BossState,
     CareerStats,
@@ -228,7 +228,8 @@ async def create_new_game(
             mechanical_arm_enabled=False,
             auto_protect_unknown=True,
             grid_data=build_initial_grid(),
-            unlocked_seed_ids=[],
+            # 初始母本：普通猫薄荷（其余靠杂交突变解锁图鉴）
+            unlocked_seed_ids=list(load_seed("cat_plants.json").get("starter_seeds", [])),
         )
     )
 
