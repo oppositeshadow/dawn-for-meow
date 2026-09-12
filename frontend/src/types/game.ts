@@ -1,0 +1,204 @@
+/** 与后端 API 契约一一对应的强类型定义（代码结构稿 §4）。 */
+
+export interface ApiEnvelope<T> {
+  code: number
+  data: T
+}
+
+export interface ApiError {
+  code: number
+  message: string
+  detail?: string
+}
+
+export type ResourceKey = 'catnip' | 'scrap' | 'chips' | 'alloys' | 'battery' | 'lube'
+
+export interface Resources {
+  catnip: number
+  scrap: number
+  chips: number
+  alloys: number
+  battery: number
+  lube: number
+}
+
+export interface PowerState {
+  gen_kw: number
+  load_kw: number
+  net_kw: number
+  battery_kwh: number
+  battery_kwh_max: number
+  blackout: boolean
+}
+
+export interface PopulationState {
+  total: number
+  max_cap: number
+  unassigned: number
+  birth_progress: number
+}
+
+export interface SuspicionState {
+  current: number
+  max: number
+}
+
+export interface OfflineReport {
+  elapsed_seconds: number
+  applied_seconds: number
+  gained_catnip: number
+  gained_scrap: number
+  gained_cats: number
+  gained_research: number
+  is_starved: boolean
+  starve_duration_seconds: number
+  is_capped: boolean
+  overflowed_resources: string[]
+  suspicion_delta: number
+  charged_kwh: number
+  clock_anomaly: boolean
+  birth_progress: number
+  notes: string[]
+}
+
+export interface ColonyStateData {
+  slot_id: number
+  planet_id: number
+  last_tick_time: number
+  saved_at: number
+  resources: Resources & { caps: Record<string, number> }
+  power: PowerState
+  population: PopulationState
+  workstations: Record<string, number>
+  workstation_limits: Record<string, number>
+  facilities: Record<string, number>
+  suspicion: SuspicionState
+  offline_report: OfflineReport
+}
+
+export interface ScavengeResult {
+  scrap: number
+  scrap_max: number
+  manual_scavenge_clicks: number
+  clicks_left: number
+  cold_start_finished: boolean
+  hint: string | null
+}
+
+export interface HysteresisPolicy {
+  enabled: boolean
+  upper: number
+  lower: number
+  shift: number
+}
+
+export interface DispatchResult {
+  role: string
+  count: number
+  unassigned: number
+  total_cats: number
+  workstations: Record<string, number>
+  workstation_limits: Record<string, number>
+  power_net_kw: number
+  policy: HysteresisPolicy | null
+}
+
+export interface BuildResult {
+  facility_id: string
+  level: number
+  count: number
+  cost_paid: Record<string, number>
+  resources: Resources
+  caps: Record<string, number>
+  total_cats: number
+  unassigned: number
+  cat_capacity: number
+  workstation_limits: Record<string, number>
+  power_net_kw: number
+  narrative: string | null
+  unlock_hint: { tech_id?: string; facility_id?: string } | null
+}
+
+export interface SnapshotResult {
+  code: number
+  message: string
+  saved_at: number
+}
+
+export interface RadioItem {
+  id: number
+  category: 'RADIO_NEWS' | 'BBS_POST' | 'DISASTER_ALERT'
+  text: string
+  impact_stock: string | null
+  template_text: string
+  use_count: number
+}
+
+export interface RadioFeed {
+  phase_id: string
+  seeded: number
+  pool_size: number
+  items: RadioItem[]
+}
+
+export interface RadioGenerateResult {
+  phase_id: string
+  requested: number
+  generated: number
+  rejected: number
+  source: 'LLM' | 'FALLBACK'
+  note: string | null
+  fell_back: boolean
+  usage: {
+    model: string
+    ok: boolean
+    attempts: number
+    prompt_tokens: number
+    completion_tokens: number
+    duration_ms: number
+    reason: string | null
+  }
+  budget: { day: string; calls: number; tokens: number; call_budget: number; exhausted: boolean }
+  pool_size: number
+}
+
+export interface FacilityEffect {
+  cat_capacity?: number
+  breeding_bonus?: number
+  workstation?: Record<string, number>
+  power_gen_kw?: number
+  power_load_kw?: number
+  battery_kwh_max?: number
+  unlock_system?: string
+  noise_multiplier?: { first_level: number; per_extra_level: number; floor: number }
+}
+
+export interface FacilityDefinition {
+  facility_id: string
+  name: string
+  role: string
+  cost: Record<string, number>
+  growth: number | null
+  max_level: number | null
+  buildable?: boolean
+  effects: FacilityEffect
+  unlock?: { tech_id?: string; facility_id?: string }
+  description: string
+}
+
+export interface JobDefinition {
+  job_id: string
+  name: string
+  era: string
+  output: { resource: string | null; rate_per_second: number }
+  workstation: { facility_id: string | null; slots_per_level: number; note?: string }
+  unlock?: { tech_id?: string; facility_id?: string; tech_tier?: string }
+  flavor: string
+}
+
+export interface LogEntry {
+  id: number
+  at: string
+  text: string
+  kind: 'info' | 'warn' | 'crit'
+}

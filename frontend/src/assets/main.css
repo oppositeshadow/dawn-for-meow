@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-terminal-bg text-terminal-text font-mono text-[13px] antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-terminal-line rounded;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded border border-terminal-line bg-terminal-panel/80;
+  }
+
+  .panel-title {
+    @apply flex items-center gap-2 border-b border-terminal-line px-3 py-2 text-[12px] tracking-wide text-terminal-dim;
+  }
+
+  .btn {
+    @apply rounded border border-terminal-line px-2 py-1 text-[12px] transition-colors hover:border-terminal-accent hover:text-terminal-accent
+      disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-terminal-line disabled:hover:text-terminal-text;
+  }
+
+  .btn-primary {
+    @apply border-terminal-accent/60 text-terminal-accent hover:bg-terminal-accent/10;
+  }
+
+  .stat-label {
+    @apply text-[11px] text-terminal-dim;
+  }
+}

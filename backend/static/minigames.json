@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "source": "数值平衡表.md §16 / 需求细分与功能模块拆解.md 模块 O",
+  "note": "星球特色小游戏字典。状态统一存 minigame_state 通用表（新增玩法无需改表结构）。",
+  "iron_rules": ["纯加速不卡主线", "零美术", "可挂机离线结算", "共用通用状态表"],
+  "minigames": [
+    {
+      "minigame_id": "cipher_decode",
+      "name": "密电译码",
+      "planet_id": 2,
+      "unlock_planet": "三号星·极寒气态冰卫星",
+      "pacing": "FAST",
+      "core_loop": "Mastermind 式推理：4 位密钥、6 种符号，只反馈‘位置对／符号对’数量",
+      "quota": { "type": "DAILY", "amount": 3 },
+      "reward": {
+        "intel_level_gain": 0.08,
+        "description": "提前 5~20 分钟获知车队出发时间或要塞弱点"
+      },
+      "initial_state": { "quota_used_today": 0, "last_reset_day": null, "current_attempts": 0 }
+    },
+    {
+      "minigame_id": "vein_scan",
+      "name": "矿脉扫描",
+      "planet_id": 3,
+      "unlock_planet": "四号星·巨型小行星带矿区",
+      "pacing": "MEDIUM",
+      "core_loop": "扫雷式 8×8 网格推理探矿，共 12 处矿脉",
+      "quota": { "type": "REGEN", "max": 5, "regen_seconds": 1800 },
+      "reward": { "resources": ["antimatter_precursor", "helium3"], "description": "反物质前驱体、氦-3 微粒" },
+      "initial_state": { "quota": 5, "last_regen_ts": null, "board": null, "revealed": [] }
+    },
+    {
+      "minigame_id": "forge_recipe",
+      "name": "熔炉配比",
+      "planet_id": 1,
+      "unlock_planet": "二号星·极热熔岩铸造星",
+      "pacing": "MEDIUM",
+      "core_loop": "按比例投料逼近隐藏配方，反馈只有‘太热／太冷／比例偏差’",
+      "quota": { "type": "RESOURCE", "cost": { "scrap": 20 } },
+      "reward": {
+        "smelt_speed_bonus_per_recipe": 0.05,
+        "cap": 0.5,
+        "recipe_cap": 10,
+        "description": "每找到 1 条配方永久 +5% 熔炼速度（上限 10 条）"
+      },
+      "initial_state": { "recipes_found": 0, "attempts": 0, "last_recipe": null }
+    }
+  ]
+}

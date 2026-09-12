@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "source": "数值平衡表.md §3.1 / §6.2 / §15.1",
+  "note": "工种定义字典。数值与 backend/app/core/balance.py 必须一致（有测试逐条比对）。",
+  "jobs": [
+    {
+      "job_id": "farmer",
+      "name": "猫草农夫",
+      "era": "PLANET",
+      "planet_scope": "home",
+      "output": { "resource": "catnip", "rate_per_second": 0.2 },
+      "workstation": { "facility_id": "farm_plot", "slots_per_level": 2 },
+      "unlock": { "facility_id": "farm_plot" },
+      "flavor": "在避难所的微光农田里给猫薄荷浇水，顺便把自己也晒暖。"
+    },
+    {
+      "job_id": "scavenger",
+      "name": "废土拾荒猫",
+      "era": "PLANET",
+      "planet_scope": "home",
+      "output": { "resource": "scrap", "rate_per_second": 0.5 },
+      "workstation": { "facility_id": "scavenge_station", "slots_per_level": 2 },
+      "unlock": { "facility_id": "scavenge_station" },
+      "flavor": "背着麻袋翻检地表建筑废墟，把微波炉拆成宝贝。"
+    },
+    {
+      "job_id": "geek",
+      "name": "极客科研猫",
+      "era": "PLANET",
+      "planet_scope": "home",
+      "output": { "resource": "research_points", "rate_per_second": 1.0 },
+      "workstation": { "facility_id": "turing_terminal", "slots_per_level": 1 },
+      "unlock": { "facility_id": "turing_terminal", "tech_id": "tech_turing_terminal" },
+      "flavor": "爪子在人类古董终端的键盘上敲出一串算力。"
+    },
+    {
+      "job_id": "power_runner",
+      "name": "踩轮发电猫",
+      "era": "PLANET",
+      "planet_scope": "home",
+      "output": { "resource": "power_kw", "rate_per_second": 5.0 },
+      "workstation": { "facility_id": "power_wheel", "slots_per_level": 1 },
+      "unlock": { "facility_id": "power_wheel" },
+      "flavor": "跑轮里的每一步都变成避难所的灯光。"
+    },
+    {
+      "job_id": "crew",
+      "name": "载具乘员猫",
+      "era": "PLANET",
+      "planet_scope": "home",
+      "output": { "resource": null, "rate_per_second": 0.0 },
+      "workstation": { "facility_id": null, "slots_per_level": 2, "note": "由出库载具编制占用，每辆 2 只" },
+      "unlock": { "tech_id": "tech_armored_car_chassis" },
+      "flavor": "司机 + 炮手，一辆猫车锁两只猫。"
+    },
+    {
+      "job_id": "fleet_commander",
+      "name": "无人机群领航官",
+      "era": "STAR",
+      "planet_scope": "planet",
+      "output": { "resource": null, "rate_per_second": 0.0 },
+      "workstation": { "facility_id": null, "slots_per_level": 1, "note": "星际科技解锁，上限 5 只/星球" },
+      "unlock": { "tech_tier": "STAR" },
+      "effects": { "planet_defense": 0.15, "drone_crit": 0.02 },
+      "flavor": "1 只猫领 50 架无人机群。"
+    },
+    {
+      "job_id": "logistics",
+      "name": "星际物流调度官",
+      "era": "STAR",
+      "planet_scope": "planet",
+      "output": { "resource": null, "rate_per_second": 0.0 },
+      "workstation": { "facility_id": null, "slots_per_level": 1, "note": "星际科技解锁，上限 4 只/星球" },
+      "unlock": { "tech_tier": "STAR" },
+      "effects": { "route_throughput": 0.2, "raid_loss_reduction": 0.1 },
+      "flavor": "星门与货运码头由猫爪调度。"
+    },
+    {
+      "job_id": "terraformer",
+      "name": "行星生态塑形师",
+      "era": "STAR",
+      "planet_scope": "planet",
+      "output": { "resource": null, "rate_per_second": 0.0 },
+      "workstation": { "facility_id": null, "slots_per_level": 1, "note": "星际科技解锁，上限 6 只/星球" },
+      "unlock": { "tech_tier": "STAR" },
+      "effects": { "planet_capacity": 0.08, "machine_wear_reduction": 0.05 },
+      "flavor": "调大气、磁场与温度，顺便踩平一块地。"
+    },
+    {
+      "job_id": "purr_master",
+      "name": "文明呼噜大师",
+      "era": "STAR",
+      "planet_scope": "planet",
+      "output": { "resource": "unity", "rate_per_second": 0.02 },
+      "workstation": { "facility_id": null, "slots_per_level": 1, "note": "星际科技解锁，上限 3 只/星球" },
+      "unlock": { "tech_tier": "STAR" },
+      "effects": { "unity_per_sec": 0.02, "morale": 0.02 },
+      "flavor": "在太空神殿里用集体呼噜产出文明凝聚力。"
+    }
+  ]
+}
