@@ -211,3 +211,79 @@ export interface LogEntry {
   text: string
   kind: 'info' | 'warn' | 'crit'
 }
+
+// ---- 模块 G：载具 / 机库 / 远征 ----
+export type VehicleStatusValue = 'IDLE' | 'EXPEDITION' | 'REPAIR' | 'SCRAPPED'
+
+export interface VehicleView {
+  unit_id: number
+  unit_type: string
+  unit_name: string
+  nickname: string | null
+  modules: Array<{ slot: number; module_id: string }>
+  shield: number
+  armor: number
+  armor_max: number
+  hull: number
+  crew_cats: number
+  status: VehicleStatusValue
+  repair_ends_at: number | null
+  expedition_id: string | null
+  combat_power: number
+}
+
+export interface VehicleTypeView {
+  name: string
+  cost: Record<string, number>
+  crew: number
+  hangar_slots: number
+  shield: number
+  armor: number
+  hull: number
+  dps: number
+}
+
+export interface ExpeditionTargetView {
+  name: string
+  duration_seconds: number
+  suspicion_cost: number
+  drops: Record<string, number>
+  requires_unit_types: string[]
+}
+
+export interface ExpeditionEntry {
+  expedition_id: string
+  target_id: string
+  unit_ids: number[]
+  started_at: number
+  ends_at: number
+  collected: boolean
+}
+
+export interface HospitalEntry {
+  unit_id: number
+  cats: number
+  ends_at: number
+}
+
+export interface HangarView {
+  hangar_capacity: number
+  hangar_used: number
+  laser_turrets: number
+  cruise_missiles: number
+  decoy_count: number
+  hospital_queue: HospitalEntry[]
+  active_expeditions: ExpeditionEntry[]
+  vehicles: VehicleView[]
+  vehicle_types: Record<string, VehicleTypeView>
+  expedition_targets: Record<string, ExpeditionTargetView>
+}
+
+export interface LootResult {
+  expedition_id: string
+  target_id: string
+  gained: Record<string, number>
+  overflowed: string[]
+  suspicion_cost: number
+  report: string[]
+}

@@ -8,6 +8,7 @@ import ResourceBar from '@/components/hud/ResourceBar.vue'
 import ThreatBar from '@/components/hud/ThreatBar.vue'
 import FacilitiesPanel from '@/components/panels/FacilitiesPanel.vue'
 import TechPanel from '@/components/panels/TechPanel.vue'
+import WarRoomPanel from '@/components/panels/WarRoomPanel.vue'
 import ProductionPanel from '@/components/panels/ProductionPanel.vue'
 import RadioTicker from '@/components/radio/RadioTicker.vue'
 import { useAutoSave } from '@/composables/useAutoSave'
@@ -163,7 +164,10 @@ onMounted(bootstrap)
         </div>
       </section>
 
-      <ProductionPanel class="col-span-3 min-h-0" />
+      <div class="col-span-3 flex min-h-0 flex-col gap-2">
+        <ProductionPanel class="min-h-0 flex-1" />
+        <WarRoomPanel class="min-h-0 flex-1" />
+      </div>
     </main>
 
     <RadioTicker />
