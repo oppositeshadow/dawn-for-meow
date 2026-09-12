@@ -44,6 +44,7 @@ from app.models.military import VehicleStatus
 from app.core.seed_loader import facility_def_map
 from app.schemas.colony import SnapshotRequest
 from app.services import tech_service
+from app.services import combat_service
 from app.services.game_init_service import create_new_game, now_timestamp
 
 logger = logging.getLogger("dawn_meow.colony")
@@ -366,6 +367,28 @@ async def settle_offline(
 
     _persist_report(colony, labor, report, now=now)
     _persist_security(military, report)
+    # 军备时间轴（模块 G）：维修到期回库、急救舱休养归队
+    military_events = await combat_service.advance_military(
+        session, slot_id=save.slot_id, planet_id=planet_id, now=now
+    )
+    if military_events["events"]:
+        report.setdefault("military_events", []).extend(military_events["events"])
+        for line in military_events["events"]:
+            report["notes"].append(line)
+    # 满警戒度：有闲置载具 ⇒ 真打一场战车截杀（§8.3 优先级 2），替换占位的 P2_PENDING
+    if any(event.get("type") == "P2_PENDING" for event in report.get("security_events", [])):
+        catnip_ratio = (
+            float(colony.catnip) / float(colony.catnip_max) if float(colony.catnip_max or 0) > 0 else 1.0
+        )
+        intercept = await combat_service.intercept_alert(
+            session, slot_id=save.slot_id, planet_id=planet_id, catnip_ratio=catnip_ratio
+        )
+        if intercept is not None:
+            report["intercept"] = intercept
+            report["notes"].append(
+                "战车截杀："
+                + ("击退侦察扫地机，警报解除" if intercept["won"] else "载具受损，乘员已进急救舱（绝无死猫）")
+            )
     save.playtime_seconds += max(0, int(delta_seconds))
     await _accumulate_career_stats(
         session, save.slot_id, report, elapsed_seconds=max(0, delta_seconds)

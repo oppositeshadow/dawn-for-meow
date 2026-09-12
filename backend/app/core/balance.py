@@ -365,6 +365,7 @@ VEHICLE_TYPES: dict[str, dict] = {
     "light_car": {
         "name": "轻装猫车",
         "shield": 50.0, "armor": 80.0, "hull": 120.0, "dps": 12.0,
+        "damage_type": "KINETIC",
         "crew": 2, "hangar_slots": 1,
         "cost": {"scrap": 40.0, "chips": 5.0},
         "repair_time_factor": 1.0,
@@ -372,6 +373,7 @@ VEHICLE_TYPES: dict[str, dict] = {
     "armored_car": {
         "name": "全地形装甲猫车",
         "shield": 200.0, "armor": 200.0, "hull": 300.0, "dps": 25.0,
+        "damage_type": "KINETIC",
         "crew": 2, "hangar_slots": 1,
         "cost": {"alloys": 100.0, "chips": 20.0},
         "repair_time_factor": 1.5,
@@ -379,6 +381,7 @@ VEHICLE_TYPES: dict[str, dict] = {
     "breaker_mech": {
         "name": "重型破拆机甲",
         "shield": 80.0, "armor": 400.0, "hull": 500.0, "dps": 40.0,
+        "damage_type": "EXPLOSIVE",
         "crew": 3, "hangar_slots": 2,
         "cost": {"alloys": 200.0, "chips": 50.0},
         "repair_time_factor": 2.0,
@@ -386,12 +389,61 @@ VEHICLE_TYPES: dict[str, dict] = {
 }
 
 ENEMY_UNITS: dict[str, dict] = {
-    "scout_roomba": {"name": "侦察扫地机", "shield": 0.0, "armor": 40.0, "hull": 80.0, "dps": 5.0},
-    "suicide_spider": {"name": "小型自爆蜘蛛", "shield": 0.0, "armor": 80.0, "hull": 130.0, "dps": 30.0},
-    "assault_drone": {"name": "突击无人机", "shield": 120.0, "armor": 60.0, "hull": 100.0, "dps": 18.0},
-    "heavy_cleaner_03": {"name": "重型清扫蜘蛛-03", "shield": 0.0, "armor": 200.0, "hull": 200.0, "dps": 22.0},
-    "heavy_guard_mech": {"name": "重型近卫机甲（关底）", "shield": 300.0, "armor": 500.0, "hull": 800.0, "dps": 45.0},
+    "scout_roomba": {"name": "侦察扫地机", "shield": 0.0, "armor": 40.0, "hull": 80.0, "dps": 5.0, "damage_type": "KINETIC"},
+    "suicide_spider": {"name": "小型自爆蜘蛛", "shield": 0.0, "armor": 80.0, "hull": 130.0, "dps": 30.0, "damage_type": "EXPLOSIVE"},
+    "assault_drone": {"name": "突击无人机", "shield": 120.0, "armor": 60.0, "hull": 100.0, "dps": 18.0, "damage_type": "LASER"},
+    "heavy_cleaner_03": {"name": "重型清扫蜘蛛-03", "shield": 0.0, "armor": 200.0, "hull": 200.0, "dps": 22.0, "damage_type": "KINETIC"},
+    "heavy_guard_mech": {"name": "重型近卫机甲（关底）", "shield": 300.0, "armor": 500.0, "hull": 800.0, "dps": 45.0, "damage_type": "EXPLOSIVE"},
 }
+
+#: 交火节奏：每回合 1 秒，上限 120 秒（避免打不完的死循环）
+COMBAT_ROUND_SECONDS = 1.0
+COMBAT_MAX_ROUNDS = 120
+
+#: 满警戒度【战车截杀】的缴获（§8.3 优先级 2：赢则清警报并缴获芯片/合金）
+INTERCEPT_SUSPICION_CLEAR = 100.0
+INTERCEPT_LOOT_CHIPS = 2.0
+INTERCEPT_LOOT_ALLOYS = 1.0
+INTERCEPT_ENEMY_UNIT = "scout_roomba"
+
+#: 拾荒与远征目标锚点（耗时 / 警戒度代价 / 掉落 / 所需车型）；与 static/expedition_targets.json 一致
+EXPEDITION_TARGETS: dict[str, dict] = {
+    "WALMART": {
+        "name": "废弃沃尔玛",
+        "duration_seconds": 180.0,
+        "suspicion_cost": 1.5,
+        "requires_unit_types": (),
+        "drops": {"scrap": 60.0, "catnip": 40.0},
+    },
+    "ELECTRONICS": {
+        "name": "市中心电脑城",
+        "duration_seconds": 360.0,
+        "suspicion_cost": 3.0,
+        "requires_unit_types": (),
+        "drops": {"scrap": 40.0, "chips": 6.0},
+    },
+    "ARSENAL": {
+        "name": "地下军火库",
+        "duration_seconds": 600.0,
+        "suspicion_cost": 5.0,
+        "requires_unit_types": ("armored_car", "breaker_mech"),
+        "drops": {"alloys": 8.0, "chips": 4.0},
+    },
+    "MINE": {
+        "name": "地下矿洞",
+        "duration_seconds": 900.0,
+        "suspicion_cost": 8.0,
+        "requires_unit_types": ("breaker_mech",),
+        "drops": {"alloys": 12.0, "scrap": 80.0},
+    },
+}
+
+#: 逆向拆解返还比例（退役/拆解只回收一半材料）
+VEHICLE_SCRAP_REFUND_RATIO = 0.5
+
+#: 乘员休养与维修（§9.6）
+VEHICLE_REPAIR_COST_RATIO = 0.50
+VEHICLE_REPAIR_BASE_SECONDS = 60.0
 
 #: 士气修正（猫薄荷占比）
 MORALE_FULL_THRESHOLD = 0.90

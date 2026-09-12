@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "source": "挂机游戏详细设计与开发需求文档.md §7.1 / 数值平衡表.md §9.8（编码落地补充）",
+  "note": "拾荒与远征目标字典：耗时与掉落为**确定性**数值（不做随机），警戒度代价在返航时结算。数值必须与 balance.EXPEDITION_TARGETS 一致。",
+  "targets": [
+    {
+      "target_id": "WALMART",
+      "name": "废弃沃尔玛",
+      "duration_seconds": 180,
+      "suspicion_cost": 1.5,
+      "requires_unit_types": [],
+      "drops": { "scrap": 60, "catnip": 40 },
+      "flavor": "货架还立着，就是没有两脚巨兽来结账了。"
+    },
+    {
+      "target_id": "ELECTRONICS",
+      "name": "市中心电脑城",
+      "duration_seconds": 360,
+      "suspicion_cost": 3.0,
+      "requires_unit_types": [],
+      "drops": { "scrap": 40, "chips": 6 },
+      "flavor": "主板堆成山，猫爪伸进去一爪子一把芯片。"
+    },
+    {
+      "target_id": "ARSENAL",
+      "name": "地下军火库",
+      "duration_seconds": 600,
+      "suspicion_cost": 5.0,
+      "requires_unit_types": ["armored_car", "breaker_mech"],
+      "drops": { "alloys": 8, "chips": 4 },
+      "flavor": "人类的枪早锈了，但合金外壳还是好东西。"
+    },
+    {
+      "target_id": "MINE",
+      "name": "地下矿洞",
+      "duration_seconds": 900,
+      "suspicion_cost": 8.0,
+      "requires_unit_types": ["breaker_mech"],
+      "drops": { "alloys": 12, "scrap": 80 },
+      "flavor": "岩层深处的金属脉络，只有破拆机甲啃得动。"
+    }
+  ]
+}
