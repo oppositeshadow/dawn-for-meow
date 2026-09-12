@@ -46,6 +46,7 @@ from app.schemas.colony import SnapshotRequest
 from app.services import tech_service
 from app.services import combat_service
 from app.services import garden_service
+from app.services import darknet_service
 from app.services.game_init_service import create_new_game, now_timestamp
 
 logger = logging.getLogger("dawn_meow.colony")
@@ -423,6 +424,18 @@ async def settle_offline(
             report["notes"].append(line)
         if garden_event["harvests"]:
             report["notes"].append(f"机械臂自动收割 {garden_event['harvests']} 株成熟作物")
+    # 深网离线推进（模块 I）：行情 tick / 做空到期 / 黑市空投送达
+    darknet_event = await darknet_service.advance_darknet(
+        session,
+        slot_id=save.slot_id,
+        planet_id=planet_id,
+        seconds=float(max(0, delta_seconds)),
+        now=now,
+    )
+    if darknet_event["events"]:
+        report.setdefault("darknet_events", []).extend(darknet_event["events"])
+        for line in darknet_event["events"]:
+            report["notes"].append(line)
     save.playtime_seconds += max(0, int(delta_seconds))
     await _accumulate_career_stats(
         session, save.slot_id, report, elapsed_seconds=max(0, delta_seconds)
