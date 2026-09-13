@@ -290,6 +290,8 @@ def build_engine_state(
         "planet_catnip_multiplier": B.planet_catnip_multiplier(colony.planet_id),
         "planet_scrap_multiplier": B.planet_output_multiplier(colony.planet_id, "scrap"),
         "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips"),
+        # 高频感应电炉座数（《数值平衡表》§3.5）：电力侧按 −10 kW/座 计，熔炼循环下一步接
+        "induction_furnaces": int(facilities.get("induction_furnace", 0)),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
@@ -527,6 +529,7 @@ def build_state_payload(
         colony.total_cats,
         garden_power_kw=garden_power_kw,
         tech_power_kw=float((tech_effects or {}).get("power_kw", 0.0)),
+        induction_furnaces=int(facilities.get("induction_furnace", 0)),
     )
     return {
         "slot_id": save.slot_id,

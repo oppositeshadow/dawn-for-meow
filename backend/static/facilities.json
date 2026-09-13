@@ -8,112 +8,214 @@
       "facility_id": "housing_box",
       "name": "瓦楞纸箱窝",
       "role": "HOUSING",
-      "cost": { "scrap": 5 },
+      "cost": {
+        "scrap": 5
+      },
       "growth": 1.15,
       "max_level": null,
-      "effects": { "cat_capacity": 1 },
-      "unlock": { "tech_id": "tech_cardboard_mechanics" },
+      "effects": {
+        "cat_capacity": 1
+      },
+      "unlock": {
+        "tech_id": "tech_cardboard_mechanics"
+      },
       "description": "手搓的第一个家：承载力 K +1，开局 5 废铁 = 手点废墟 5 次。"
     },
     {
       "facility_id": "farm_plot",
       "name": "水培农田",
       "role": "PRODUCTION",
-      "cost": { "scrap": 10 },
+      "cost": {
+        "scrap": 10
+      },
       "growth": 1.2,
       "max_level": null,
-      "effects": { "workstation": { "farmer": 2 } },
-      "unlock": { "tech_id": "tech_hydroponics_basics" },
+      "effects": {
+        "workstation": {
+          "farmer": 2
+        }
+      },
+      "unlock": {
+        "tech_id": "tech_hydroponics_basics"
+      },
       "description": "每座提供 2 个猫草农夫工位（0.2 猫薄荷/s 每位）。"
     },
     {
       "facility_id": "scavenge_station",
       "name": "废品解体操作台",
       "role": "PRODUCTION",
-      "cost": { "scrap": 8 },
+      "cost": {
+        "scrap": 8
+      },
       "growth": 1.2,
       "max_level": null,
-      "effects": { "workstation": { "scavenger": 2 } },
-      "unlock": { "tech_id": "tech_appliance_teardown" },
+      "effects": {
+        "workstation": {
+          "scavenger": 2
+        }
+      },
+      "unlock": {
+        "tech_id": "tech_appliance_teardown"
+      },
       "description": "每座提供 2 个拾荒猫工位（0.5 废铁/s 每位），拆解家电有概率得芯片。"
     },
     {
       "facility_id": "turing_terminal",
       "name": "人类古董图灵终端",
       "role": "RESEARCH",
-      "cost": { "scrap": 50, "chips": 5 },
+      "cost": {
+        "scrap": 50,
+        "chips": 5
+      },
       "growth": 1.6,
       "max_level": null,
-      "effects": { "workstation": { "geek": 1 }, "power_load_kw": 6 },
-      "unlock": { "tech_id": "tech_turing_terminal" },
+      "effects": {
+        "workstation": {
+          "geek": 1
+        },
+        "power_load_kw": 6
+      },
+      "unlock": {
+        "tech_id": "tech_turing_terminal"
+      },
       "description": "每台提供 1 个极客科研猫工位，耗电 6 kW（欠载即断电）。"
     },
     {
       "facility_id": "power_wheel",
       "name": "猫力发电滚轮",
       "role": "POWER",
-      "cost": { "scrap": 15 },
+      "cost": {
+        "scrap": 15
+      },
       "growth": 1.15,
       "max_level": null,
-      "effects": { "workstation": { "power_runner": 1 }, "power_gen_kw": 5 },
-      "unlock": { "tech_id": "tech_hydroponics_basics" },
+      "effects": {
+        "workstation": {
+          "power_runner": 1
+        },
+        "power_gen_kw": 5
+      },
+      "unlock": {
+        "tech_id": "tech_hydroponics_basics"
+      },
       "description": "每座提供 1 个踩轮工位，每只踩轮猫发电 5 kW。"
     },
     {
       "facility_id": "solar_panel",
       "name": "地表太阳能集热板",
       "role": "POWER",
-      "cost": { "scrap": 30, "chips": 2 },
+      "cost": {
+        "scrap": 30,
+        "chips": 2
+      },
       "growth": 1.25,
       "max_level": null,
-      "effects": { "power_gen_kw": 8 },
-      "unlock": { "tech_id": "tech_cardboard_mechanics" },
+      "effects": {
+        "power_gen_kw": 8
+      },
+      "unlock": {
+        "tech_id": "tech_cardboard_mechanics"
+      },
       "description": "免人工发电 8 kW/座，代价是地表暴露风险（后续玩法）。"
     },
     {
       "facility_id": "acoustic_layer",
       "name": "瓦楞纸隔音降噪层",
       "role": "STEALTH",
-      "cost": { "scrap": 20 },
+      "cost": {
+        "scrap": 20
+      },
       "growth": 1.5,
       "max_level": null,
       "effects": {
-        "noise_multiplier": { "first_level": 0.7, "per_extra_level": 0.9, "floor": 0.1 }
+        "noise_multiplier": {
+          "first_level": 0.7,
+          "per_extra_level": 0.9,
+          "floor": 0.1
+        }
       },
-      "unlock": { "tech_id": "tech_acoustic_layer" },
+      "unlock": {
+        "tech_id": "tech_acoustic_layer"
+      },
       "description": "Lv1 降噪 30%，每级再 −10%（乘算，上限 90%）。"
     },
     {
       "facility_id": "cat_condo",
       "name": "多层猫爬架公寓",
       "role": "HOUSING",
-      "cost": { "scrap": 100, "chips": 20, "alloys": 10 },
+      "cost": {
+        "scrap": 100,
+        "chips": 20,
+        "alloys": 10
+      },
       "growth": 1.35,
       "max_level": null,
-      "effects": { "cat_capacity": 10, "breeding_bonus": 0.1 },
-      "unlock": { "tech_id": "tech_cardboard_mechanics" },
+      "effects": {
+        "cat_capacity": 10,
+        "breeding_bonus": 0.1
+      },
+      "unlock": {
+        "tech_id": "tech_cardboard_mechanics"
+      },
       "description": "承载力 K +10，且全局繁育系数 r +10%。"
     },
     {
       "facility_id": "refinery",
       "name": "生化精炼工坊",
       "role": "INDUSTRY",
-      "cost": { "scrap": 60, "chips": 10 },
+      "cost": {
+        "scrap": 60,
+        "chips": 10
+      },
       "growth": 1.3,
       "max_level": null,
-      "effects": { "unlock_system": "LUBE_REFINERY" },
-      "unlock": { "tech_id": "tech_greenhouse_loop" },
+      "effects": {
+        "unlock_system": "LUBE_REFINERY"
+      },
+      "unlock": {
+        "tech_id": "tech_greenhouse_loop"
+      },
       "description": "解锁生物润滑脂精炼：100 猫薄荷 → 1 润滑脂（或采摘精炼黄金草）。"
+    },
+    {
+      "facility_id": "induction_furnace",
+      "name": "高频感应电炉",
+      "role": "INDUSTRY",
+      "cost": {
+        "scrap": 120,
+        "chips": 25
+      },
+      "growth": 1.4,
+      "max_level": null,
+      "effects": {
+        "unlock_system": "SMELTING",
+        "load_kw": 10,
+        "smelt_scrap_per_batch": 10,
+        "smelt_alloy_per_batch": 1,
+        "smelt_batch_seconds": 10
+      },
+      "unlock": {
+        "tech_id": "tech_induction_furnace"
+      },
+      "description": "10 废铁炼 1 合金；一台炉吃 10 kW，欠载时全部停炉（数值平衡表 §3.5）。"
     },
     {
       "facility_id": "battery_bank",
       "name": "高能蓄能矩阵（蓄电池）",
       "role": "POWER",
-      "cost": { "scrap": 80, "chips": 15, "alloys": 5 },
+      "cost": {
+        "scrap": 80,
+        "chips": 15,
+        "alloys": 5
+      },
       "growth": null,
       "max_level": 1,
-      "effects": { "battery_kwh_max": 200 },
-      "unlock": { "tech_id": "tech_battery_matrix" },
+      "effects": {
+        "battery_kwh_max": 200
+      },
+      "unlock": {
+        "tech_id": "tech_battery_matrix"
+      },
       "description": "唯一建筑：电容池上限 200 kWh，充电速率 = max(0, 净余) × 0.1 kWh/s。"
     },
     {
@@ -125,7 +227,9 @@
       "max_level": 4,
       "buildable": false,
       "effects": {},
-      "unlock": { "tech_id": "tech_launch_silo_engineering" },
+      "unlock": {
+        "tech_id": "tech_launch_silo_engineering"
+      },
       "description": "阶段巨构（竖坑清理 → 导轨浇筑 → 推进剂加注 → 点火总装）。造价待定稿，本轮只入等级 0 占位行。"
     }
   ]

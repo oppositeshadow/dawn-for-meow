@@ -99,6 +99,10 @@ BREEDING_INTEGRATION_STEP_SECONDS = 60.0
 SOLAR_PANEL_KW = 8.0                    # 每座太阳能集热板
 TURING_TERMINAL_LOAD_KW = 6.0           # 每台图灵终端
 INDUCTION_FURNACE_LOAD_KW = 10.0        # 每座高频感应电炉（由熔炼玩法提供座数）
+#: 熔炼配方与节奏（《数值平衡表》§3.5）：10 废铁 → 1 合金，单座 10 秒一炉次
+SMELT_SCRAP_PER_BATCH = 10.0
+SMELT_ALLOY_PER_BATCH = 1.0
+SMELT_BATCH_SECONDS = 10.0
 LIVING_HEAT_KW = 2.0                    # 生活供暖：每 10 只猫 −2 kW
 LIVING_HEAT_CATS_PER_UNIT = 10
 
@@ -201,6 +205,19 @@ FACILITY_SPECS: dict[str, dict] = {
         "growth": 1.30,
         "max_level": None,
         "effects": {"unlock_system": "LUBE_REFINERY"},
+    },
+    "induction_furnace": {
+        "name": "高频感应电炉",
+        "cost": {"scrap": 120.0, "chips": 25.0},
+        "growth": 1.40,
+        "max_level": None,
+        "effects": {
+            "unlock_system": "SMELTING",
+            "load_kw": INDUCTION_FURNACE_LOAD_KW,
+            "smelt_scrap_per_batch": SMELT_SCRAP_PER_BATCH,
+            "smelt_alloy_per_batch": SMELT_ALLOY_PER_BATCH,
+            "smelt_batch_seconds": SMELT_BATCH_SECONDS,
+        },
     },
     "battery_bank": {
         "name": "高能蓄能矩阵（蓄电池）",
