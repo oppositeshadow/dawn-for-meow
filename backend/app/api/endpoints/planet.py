@@ -76,12 +76,18 @@ async def post_planet_switch(
     save = await session.get(SaveSlot, payload.slot)
     if save is not None:
         save.active_planet_id = payload.planet_id
+    # LLM 场景 1：登录新行星时生成生态环境与词缀（每颗星球 1 次，失败走本地生态池）
+    from app.services import planet_service
+
+    biome = await planet_service.ensure_biome(session, payload.slot, payload.planet_id)
     await session.commit()
     return MilitaryEnvelope(
         code=200,
         data={
             "planet_id": payload.planet_id,
             "name": B.PLANETS.get(payload.planet_id, str(payload.planet_id)),
+            "biome_tag": target.biome_tag,
+            "biome_source": biome["source"] if biome else None,
             "switched_at": now_timestamp(),
         },
     )

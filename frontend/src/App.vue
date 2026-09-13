@@ -11,6 +11,7 @@ import TechPanel from '@/components/panels/TechPanel.vue'
 import WarRoomPanel from '@/components/panels/WarRoomPanel.vue'
 import GardenPanel from '@/components/panels/GardenPanel.vue'
 import DarknetPanel from '@/components/panels/DarknetPanel.vue'
+import MinigamePanel from '@/components/panels/MinigamePanel.vue'
 import ProductionPanel from '@/components/panels/ProductionPanel.vue'
 import RadioTicker from '@/components/radio/RadioTicker.vue'
 import { useAutoSave } from '@/composables/useAutoSave'
@@ -26,12 +27,13 @@ useGameLoop()
 useAutoSave()
 
 const offlineOpen = ref(false)
-const leftTab = ref<'facilities' | 'tech' | 'garden' | 'darknet'>('facilities')
+const leftTab = ref<'facilities' | 'tech' | 'garden' | 'darknet' | 'minigame'>('facilities')
 const leftTabs = [
   { key: 'facilities' as const, label: '设施建造' },
   { key: 'tech' as const, label: '科技树' },
   { key: 'garden' as const, label: '猫草实验室' },
   { key: 'darknet' as const, label: '智械深网' },
+  { key: 'minigame' as const, label: '小游戏' },
 ]
 
 const coldStartSteps: Record<string, { title: string; body: string; action: string; run: () => void }> = {
@@ -117,7 +119,8 @@ onMounted(bootstrap)
         <FacilitiesPanel v-if="leftTab === 'facilities'" class="min-h-0 flex-1" />
         <TechPanel v-else-if="leftTab === 'tech'" class="min-h-0 flex-1" />
         <GardenPanel v-else-if="leftTab === 'garden'" class="min-h-0 flex-1" />
-        <DarknetPanel v-else class="min-h-0 flex-1" />
+        <DarknetPanel v-else-if="leftTab === 'darknet'" class="min-h-0 flex-1" />
+        <MinigamePanel v-else class="min-h-0 flex-1" />
       </div>
 
       <section class="panel col-span-5 flex min-h-0 flex-col">
