@@ -127,6 +127,49 @@ export const useMilitaryStore = defineStore('military', () => {
     )
   }
 
+  /** 装配模块（《数值平衡表》§9.10）：科技门槛 / 槽位 / 材料由后端三段校验 */
+  function equipModule(unitId: number, moduleId: string) {
+    return run(
+      `装配 ${moduleId}`,
+      () =>
+        request<{
+          data: { modules: string[]; slots_used: number; slots_total: number; cost_paid: Record<string, number> }
+        }>('/vehicle/modify', {
+          method: 'POST',
+          body: JSON.stringify({
+            slot: colony.slotId,
+            planet_id: colony.planetId,
+            unit_id: unitId,
+            action: 'EQUIP',
+            module_id: moduleId,
+          }),
+        }),
+      (result) =>
+        colony.log(
+          `装配完成：占用 ${result.data.slots_used}/${result.data.slots_total} 槽，扣 ${costText(result.data.cost_paid)}`,
+        ),
+    )
+  }
+
+  /** 拆卸模块：返还 50% 材料（鼓励试配装，§9.10） */
+  function unequipModule(unitId: number, moduleId: string) {
+    return run(
+      `拆卸 ${moduleId}`,
+      () =>
+        request<{ data: { modules: string[]; refund: Record<string, number> } }>('/vehicle/modify', {
+          method: 'POST',
+          body: JSON.stringify({
+            slot: colony.slotId,
+            planet_id: colony.planetId,
+            unit_id: unitId,
+            action: 'UNEQUIP',
+            module_id: moduleId,
+          }),
+        }),
+      (result) => colony.log(`拆下 ${moduleId}，返还 ${costText(result.data.refund)}`),
+    )
+  }
+
   function dispatch(targetId: string, unitIds: number[]) {
     return run(
       '派遣远征',
@@ -275,6 +318,8 @@ export const useMilitaryStore = defineStore('military', () => {
     assemble,
     repair,
     scrap,
+    equipModule,
+    unequipModule,
     dispatch,
     collect,
     tacticalAction,

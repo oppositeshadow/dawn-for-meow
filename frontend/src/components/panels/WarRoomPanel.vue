@@ -27,6 +27,15 @@ const targets = computed(() => Object.entries(view.value?.expedition_targets ?? 
 
 const assembleHint = computed(() => military.assembleHint(selectedType.value))
 
+// 车载模块（§9.10）：每辆车一个待装选择，模块目录来自 /vehicle/list
+const modulePick = ref<Record<number, string>>({})
+const modules = computed(() => view.value?.vehicle_modules ?? {})
+const moduleIds = computed(() => Object.keys(modules.value))
+
+function moduleName(moduleId: string): string {
+  return (modules.value as Record<string, { name: string }>)[moduleId]?.name ?? moduleId
+}
+
 function statusTone(vehicle: VehicleView): 'accent' | 'warn' | 'dim' | 'crit' {
   if (vehicle.status === 'IDLE') return 'accent'
   if (vehicle.status === 'EXPEDITION') return 'dim'
@@ -134,6 +143,37 @@ const tacticalLabel: Record<string, string> = {
           <span>装甲 {{ vehicle.armor.toFixed(0) }}/{{ vehicle.armor_max.toFixed(0) }}</span>
           <span>结构 {{ vehicle.hull.toFixed(0) }}</span>
           <span>乘员 {{ vehicle.crew_cats }}</span>
+        </div>
+        <div class="flex items-center gap-2 text-[10px]">
+          <span class="text-terminal-dim">模块</span>
+          <span v-if="vehicle.modules.length === 0" class="text-terminal-dim">（空槽）</span>
+          <button
+            v-for="moduleId in vehicle.modules"
+            :key="moduleId"
+            class="btn px-1.5 py-0"
+            :disabled="military.busy || vehicle.status !== 'IDLE'"
+            :title="moduleName(moduleId)"
+            @click="military.unequipModule(vehicle.unit_id, moduleId)"
+          >
+            {{ moduleName(moduleId) }} ✕
+          </button>
+          <select
+            v-model="modulePick[vehicle.unit_id]"
+            class="ml-auto rounded border border-terminal-line bg-transparent px-1 py-0 text-[10px]"
+            :disabled="military.busy || vehicle.status !== 'IDLE'"
+          >
+            <option :value="''">选模块…</option>
+            <option v-for="candidate in moduleIds" :key="candidate" :value="candidate">
+              {{ moduleName(candidate) }}
+            </option>
+          </select>
+          <button
+            class="btn px-1.5 py-0"
+            :disabled="military.busy || vehicle.status !== 'IDLE' || !modulePick[vehicle.unit_id]"
+            @click="military.equipModule(vehicle.unit_id, modulePick[vehicle.unit_id])"
+          >
+            装
+          </button>
         </div>
       </div>
 

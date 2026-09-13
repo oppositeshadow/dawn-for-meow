@@ -131,8 +131,19 @@ async def list_hangar(
                 "armor": spec["armor"],
                 "hull": spec["hull"],
                 "dps": spec["dps"],
+                "module_slots": B.vehicle_module_slots(key),
             }
             for key, spec in B.VEHICLE_TYPES.items()
+        },
+        "vehicle_modules": {
+            key: {
+                "name": spec["name"],
+                "slots": spec["slots"],
+                "cost": spec["cost"],
+                "unlock_tech": spec["unlock_tech"],
+                "effects": spec["effects"],
+            }
+            for key, spec in B.VEHICLE_MODULES.items()
         },
         "expedition_targets": {
             key: {

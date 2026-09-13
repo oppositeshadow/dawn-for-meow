@@ -244,7 +244,8 @@ export interface VehicleView {
   unit_type: string
   unit_name: string
   nickname: string | null
-  modules: Array<{ slot: number; module_id: string }>
+  /** 已装配的模块 ID 列表（《数值平衡表》§9.10） */
+  modules: string[]
   shield: number
   armor: number
   armor_max: number
@@ -310,6 +311,11 @@ export interface HangarView {
   active_expeditions: ExpeditionEntry[]
   vehicles: VehicleView[]
   vehicle_types: Record<string, VehicleTypeView>
+  /** 车载模块目录（《数值平衡表》§9.10） */
+  vehicle_modules: Record<
+    string,
+    { name: string; slots: number; cost: Record<string, number>; unlock_tech: string; effects: Record<string, number> }
+  >
   expedition_targets: Record<string, ExpeditionTargetView>
 }
 
