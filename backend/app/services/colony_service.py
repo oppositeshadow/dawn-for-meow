@@ -799,6 +799,14 @@ async def manual_scavenge(
     * 一旦有拾荒猫在岗（自动化真正跑起来）入口即关闭；没猫上工时保留这条兜底路径（防死档）。
     """
     save, target_planet, _planet = await _resolve_target(session, slot_id, planet_id)
+    # 手点废墟是**母星避难所专属**的冷启动兜底（§3.4：通风管道尽头的地表建筑废墟）。
+    # 外星球没有这条路：星际扩张的代价就是"从母星把物资运过去"（§15.3），
+    # 否则玩家在外星球点 40 次就能绕过整套跨星物流（带宽/调度官/被劫掠全都失去意义）。
+    if target_planet != B.HOME_PLANET_ID:
+        raise BadRequest(
+            "COLD_START_HOME_ONLY",
+            "手点废墟只适用于母星避难所；外星球请走跨星航线运物资（星区星图 → 迁猫时随船带货）",
+        )
     _report, colony, facilities, labor = await settle_offline(session, save, target_planet)
 
     if int(labor.get(B.COLD_START_EXIT_ON_DUTY_JOB, 0)) > 0:

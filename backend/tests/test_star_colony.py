@@ -111,3 +111,34 @@ async def test_locked_planet_still_refused(client, session) -> None:
     assert resp.json()["message"] == "PLANET_LOCKED"
     await session.rollback()
     assert await session.get(ColonyState, (1, 2)) is None  # 未解锁就不建行
+
+
+async def test_manual_scavenge_is_home_planet_only(client, session) -> None:
+    """手点废墟是母星专属冷启动兜底；外星球必须走跨星航线（§3.4 / §15.3）。"""
+    await _boot(client)
+    await _unlock(session, 1)
+    await client.post(SWITCH_URL, json={"slot": 1, "planet_id": 1})  # 建行
+    resp = await client.post("/api/v1/colony/scavenge", params={"slot": 1, "planet_id": 1})
+    assert resp.status_code == 400
+    assert resp.json()["message"] == "COLD_START_HOME_ONLY"
+
+    home = await client.post("/api/v1/colony/scavenge", params={"slot": 1, "planet_id": 0})
+    assert home.status_code == 200  # 母星照旧可用
+
+
+async def test_garden_lab_works_on_star_planet(client, session) -> None:
+    """半截链路审计：外星球的水培实验室必须能直接用（不是只有母星能用）。"""
+    await _boot(client)
+    await _unlock(session, 2)
+    await client.post(SWITCH_URL, json={"slot": 1, "planet_id": 2})  # 建行（含 garden_state）
+
+    state = (await client.get("/api/v1/garden/state", params={"slot": 1, "planet_id": 2})).json()["data"]
+    assert state["unlocked_cells"] == 9
+    assert state["codex"]  # 初始母本随星球一起建行
+
+    planted = await client.post(
+        "/api/v1/garden/action",
+        json={"slot": 1, "planet_id": 2, "action": "PLANT", "x": 3, "y": 3, "seed_id": state["codex"][0]},
+    )
+    assert planted.status_code == 200, planted.text
+    assert planted.json()["data"]["plant_name"]
