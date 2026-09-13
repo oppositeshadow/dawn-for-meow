@@ -31,6 +31,9 @@ class PlanetMigrateRequest(BaseModel):
     from_planet: int = Field(default=B.HOME_PLANET_ID, ge=0, le=3)
     to_planet: int = Field(ge=1, le=3)
     count: int = Field(ge=1, le=B.STAR_ROUTE_MAX_CATS_PER_TRIP)
+    cargo: dict[str, float] | None = Field(
+        default=None, description=f"随船物资（单趟上限 {B.STAR_ROUTE_CARGO_PER_TRIP}）"
+    )
 
 
 @router.get("/planet/state", response_model=MilitaryEnvelope)
@@ -86,6 +89,7 @@ async def post_planet_migrate(
         from_planet=payload.from_planet,
         to_planet=payload.to_planet,
         count=payload.count,
+        cargo=payload.cargo,
     )
     await session.commit()
     return MilitaryEnvelope(code=200, data=data)

@@ -94,6 +94,48 @@ const starColonyEmpty = computed(
     (colony.facilities.housing_box ?? 0) === 0,
 )
 
+// 外星球开荒清单：猫口到了之后接着干什么（母星冷启动的"外星球版"，去掉手点废墟那几步）
+const starSteps = computed(() => {
+  const facilities = colony.facilities
+  const jobs = colony.workstations
+  return [
+    {
+      label: '把猫口运过来',
+      done: colony.population.total > 0,
+      action: '去星区星图运猫',
+      run: () => {
+        leftTab.value = 'planet'
+      },
+    },
+    {
+      label: '盖第一座纸箱窝（5 废铁）',
+      done: (facilities.housing_box ?? 0) > 0,
+      action: '建造纸箱窝',
+      run: () => void colony.build('housing_box'),
+    },
+    {
+      label: '造水培农田（10 废铁）',
+      done: (facilities.farm_plot ?? 0) > 0,
+      action: '建造水培农田',
+      run: () => void colony.build('farm_plot'),
+    },
+    {
+      label: '派 1 只农夫猫上工',
+      done: (jobs.farmer ?? 0) > 0,
+      action: '指派农夫',
+      run: () => void colony.dispatch('farmer', 1),
+    },
+    {
+      label: '造废品解体操作台（8 废铁）',
+      done: (facilities.scavenge_station ?? 0) > 0,
+      action: '建造操作台',
+      run: () => void colony.build('scavenge_station'),
+    },
+  ]
+})
+
+const nextStarStep = computed(() => starSteps.value.find((step) => !step.done) ?? null)
+
 const offlineSummary = computed(() => {
   const report = colony.offlineReport
   if (!report) return null
@@ -188,8 +230,36 @@ onMounted(bootstrap)
             <button class="btn px-3 py-1.5" @click="planetStore.switchTo(0)">回母星调度</button>
           </div>
         </div>
-        <div v-else-if="currentStep" class="border-b border-terminal-line bg-terminal-accent/5 p-4">
+        <!-- 外星球开荒清单：猫口落地后按母星同一条路径重走一遍（不含手点废墟） -->
+        <div v-else-if="isStarPlanet" class="border-b border-terminal-line bg-terminal-accent/5 p-4">
           <div class="flex items-center gap-2 text-[13px] text-terminal-accent">
+            <Orbit class="h-4 w-4" />
+            【{{ starName }}】开荒进度
+          </div>
+          <ul class="mt-2 space-y-1 text-[12px]">
+            <li v-for="step in starSteps" :key="step.label" class="flex items-center gap-2">
+              <span :class="step.done ? 'text-terminal-accent' : 'text-terminal-dim'">
+                {{ step.done ? '☑' : '☐' }}
+              </span>
+              <span :class="step.done ? 'text-terminal-dim line-through' : 'text-terminal-text'">
+                {{ step.label }}
+              </span>
+            </li>
+          </ul>
+          <button
+            v-if="nextStarStep"
+            class="btn btn-primary mt-3 px-3 py-1.5"
+            :disabled="colony.busy"
+            @click="nextStarStep.run()"
+          >
+            {{ nextStarStep.action }}
+          </button>
+          <p v-else class="mt-3 text-[11px] text-terminal-dim">
+            这颗星球的自动化闭环已跑通，可以回母星或继续铺产能了。
+          </p>
+        </div>
+        <div v-else-if="currentStep" class="border-b border-terminal-line bg-terminal-accent/5 p-4">
+            <div class="flex items-center gap-2 text-[13px] text-terminal-accent">
             <Sparkles class="h-4 w-4" />
             {{ currentStep.title }}
           </div>

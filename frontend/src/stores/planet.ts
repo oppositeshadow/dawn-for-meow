@@ -56,19 +56,30 @@ export const usePlanetStore = defineStore('planet', () => {
     }
   }
 
-  async function migrate(toPlanet: number, count: number) {
+  async function migrate(toPlanet: number, count: number, cargo: Record<string, number> = {}) {
     busy.value = true
     try {
       const payload = await request<{ data: { eta_seconds: number; slots_used: number; slots_total: number } }>(
         '/planet/migrate',
         {
           method: 'POST',
-          body: JSON.stringify({ slot: colony.slotId, from_planet: 0, to_planet: toPlanet, count }),
+          body: JSON.stringify({
+            slot: colony.slotId,
+            from_planet: 0,
+            to_planet: toPlanet,
+            count,
+            ...(Object.keys(cargo).length ? { cargo } : {}),
+          }),
         },
       )
+      const cargoText = Object.entries(cargo)
+        .filter(([, amount]) => amount > 0)
+        .map(([resource, amount]) => `${amount} ${resource}`)
+        .join('、')
       colony.log(
         `航线出发：${count} 只猫前往${planets.value.find((p) => p.planet_id === toPlanet)?.name ?? `星球 ${toPlanet}`}，` +
-          `预计 ${payload.data.eta_seconds} 秒抵达（在途 ${payload.data.slots_used}/${payload.data.slots_total} 条）`,
+          `预计 ${payload.data.eta_seconds} 秒抵达（在途 ${payload.data.slots_used}/${payload.data.slots_total} 条）` +
+          (cargoText ? `｜随船：${cargoText}` : ''),
       )
       await refresh()
       await colony.refresh({ silent: true })

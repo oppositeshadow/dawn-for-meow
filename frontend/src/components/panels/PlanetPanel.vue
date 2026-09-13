@@ -11,6 +11,7 @@ const planet = usePlanetStore()
 
 const target = ref<number>(1)
 const count = ref<number>(2)
+const cargoScrap = ref<number>(30)
 const now = ref(Math.floor(Date.now() / 1000))
 let clock: number | null = null
 
@@ -85,12 +86,28 @@ function eta(route: { arrives_at: number }): string {
             max="20"
             class="w-16 rounded border border-terminal-line/70 bg-transparent px-1"
           >
-          <button class="btn btn-primary px-2 py-0.5" :disabled="planet.busy" @click="planet.migrate(target, count)">
+          <button
+            class="btn btn-primary px-2 py-0.5"
+            :disabled="planet.busy"
+            @click="planet.migrate(target, count, cargoScrap > 0 ? { scrap: cargoScrap } : {})"
+          >
             派出
           </button>
         </div>
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="text-terminal-dim">随船废铁</span>
+          <input
+            v-model.number="cargoScrap"
+            type="number"
+            min="0"
+            max="60"
+            class="w-16 rounded border border-terminal-line/70 bg-transparent px-1"
+          >
+          <span class="text-terminal-dim">母星现有 {{ Math.floor(colony.resources.scrap) }}（单趟上限 60）</span>
+        </div>
         <p class="text-[10px] text-terminal-dim">
           出发即离港、单趟 60 秒；在途期间两边都不占工位。被劫掠只延误 10 分钟，猫一只都不会丢。
+          外星球从 0 起步、没有废墟可点，第一批必须随船带废铁，否则造不出纸箱窝。
         </p>
       </div>
     </div>

@@ -49,12 +49,17 @@ async def migrate_cats(
     to_planet: int,
     count: int,
     now: int | None = None,
+    cargo: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """派一趟跨星航线把猫口从母星运到外星球（《数值平衡表》§15.3 第②步）。
 
     * 猫口**出发即离开母星**，抵达时才计入目标星球（在途期间两边都不占用工位）；
     * 带宽：基础 2 条在途航线/星，星际物流调度官每只 +1（封顶 4）；
     * 被劫掠 = **延误 10 分钟**（绝不死猫）。
+
+    `cargo`（可选）：随船携带的物资（默认不载货）。外星球从 0 起步且没有"手点废墟"，
+    因此**必须能运物资**才不至于死锁（§15.3 落地补充）；单趟每种物资的上限见
+    `STAR_ROUTE_CARGO_PER_TRIP`，超量直接拒绝（不做"静默截断"）。
     """
     if to_planet == from_planet:
         raise BadRequest("BAD_REQUEST", "起点与终点不能是同一颗星球")
@@ -77,6 +82,23 @@ async def migrate_cats(
             detail=f"需要 {count} 只空闲猫，母星当前只有 {int(source.job_idle)} 只（先去工位调度里收回）"
         )
 
+    shipped: dict[str, float] = {}
+    for resource, amount in (cargo or {}).items():
+        if resource not in B.STAR_ROUTE_CARGO_PER_TRIP:
+            raise BadRequest("BAD_REQUEST", f"航线暂不支持运送 {resource}")
+        if amount <= 0:
+            continue
+        limit = float(B.STAR_ROUTE_CARGO_PER_TRIP[resource])
+        if amount > limit:
+            raise BadRequest("BAD_REQUEST", f"单趟最多运 {limit:g} {resource}，收到 {amount:g}")
+        if float(getattr(source, resource)) < amount:
+            raise InsufficientResource(
+                detail=f"母星只有 {float(getattr(source, resource)):g} {resource}，不足以运出 {amount:g}"
+            )
+        shipped[resource] = round(float(amount), 2)
+    for resource, amount in shipped.items():
+        setattr(source, resource, round(float(getattr(source, resource)) - amount, 2))
+
     routes = [dict(item) for item in (target.logistics_routes or [])]
     if len(routes) >= await route_slots(session, slot_id, to_planet):
         raise BadRequest(
@@ -90,6 +112,7 @@ async def migrate_cats(
         "from_planet": from_planet,
         "to_planet": to_planet,
         "cat_count": int(count),
+        "cargo": shipped,
         "departed_at": stamped,
         "arrives_at": stamped + int(B.STAR_ROUTE_SECONDS),
         "raided": False,
@@ -110,6 +133,7 @@ async def migrate_cats(
         "source_total_cats": int(source.total_cats),
         "source_idle_cats": int(source.job_idle),
         "eta_seconds": int(B.STAR_ROUTE_SECONDS),
+        "cargo": shipped,
         "slots_used": len(routes),
         "slots_total": await route_slots(session, slot_id, to_planet),
     }
@@ -152,9 +176,17 @@ async def settle_routes(
             if target is not None:
                 target.total_cats = int(target.total_cats) + int(route["cat_count"])
                 target.job_idle = int(target.job_idle) + int(route["cat_count"])
+                # 随船物资一起交付（按目标星球的仓储上限夹紧）
+                for resource, amount in (route.get("cargo") or {}).items():
+                    cap = float(getattr(target, f"{resource}_max", amount))
+                    setattr(
+                        target,
+                        resource,
+                        round(min(cap, float(getattr(target, resource)) + float(amount)), 2),
+                    )
             events.append(
                 {"type": "ROUTE_ARRIVED", "route_id": route_id, "to_planet": int(route["to_planet"]),
-                 "cat_count": int(route["cat_count"])}
+                 "cat_count": int(route["cat_count"]), "cargo": dict(route.get("cargo") or {})}
             )
         planet.logistics_routes = pending
     await session.flush()

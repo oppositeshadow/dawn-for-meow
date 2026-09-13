@@ -381,6 +381,9 @@ STAR_ROUTE_RAID_CHANCE = 0.08
 STAR_ROUTE_RAID_RAGE_THRESHOLD = 60
 #: 被劫掠的后果：**延误**而不是死猫（对齐"绝无死猫"原则）
 STAR_ROUTE_RAID_DELAY_SECONDS = 600.0
+#: 跨星航线可随船携带的物资（§15.3 落地补充：外星球从 0 起步，没有"手点废墟"，
+#: 若不能运物资则永远造不出第一座纸箱窝 ⇒ 外星球死锁）
+STAR_ROUTE_CARGO_PER_TRIP: dict[str, float] = {"scrap": 60.0}
 #: 三颗星球各自的承载力系数（§15.3：熔岩星难住人 / 冰卫星中庸 / 星带能塞猫）
 STAR_PLANET_CAPACITY_MULTIPLIER: dict[int, float] = {1: 0.8, 2: 0.9, 3: 1.2}
 #: 三颗星球各自的产粮系数（§15.3：熔岩星种不活、冰卫星靠温室、星带勉强够吃）

@@ -114,6 +114,70 @@ async def test_migrate_refuses_locked_planet(client, session) -> None:
     assert resp.json()["message"] == "PLANET_LOCKED"
 
 
+async def test_route_can_carry_materials_so_star_colony_can_start(client, session, monkeypatch) -> None:
+    """外星球从 0 起步且没有"手点废墟"⇒ 航线必须能运物资，否则永远造不出第一座纸箱窝。"""
+    await _boot(client, session, cats=2)
+    monkeypatch.setattr(B, "STAR_ROUTE_RAID_CHANCE", 0.0)
+    await session.rollback()
+    colony = await session.get(ColonyState, (1, 0))
+    colony.scrap = 40.0
+    await session.commit()
+
+    sent = await client.post(
+        MIGRATE_URL, json={"slot": 1, "to_planet": 1, "count": 1, "cargo": {"scrap": 30}}
+    )
+    assert sent.status_code == 200, sent.text
+    assert sent.json()["data"]["cargo"] == {"scrap": 30.0}
+
+    await session.rollback()
+    source = await session.get(ColonyState, (1, 0), populate_existing=True)
+    assert source.scrap == 10.0  # 出发即离港（货也算）
+
+    # 到点交付：猫口与物资一起落地
+    await session.rollback()
+    planet = await session.get(PlanetState, (1, 1))
+    routes = [dict(item) for item in (planet.logistics_routes or [])]
+    routes[0]["arrives_at"] = int(time.time()) - 1
+    planet.logistics_routes = routes
+    await session.commit()
+    await planet_service.settle_routes(session, 1)
+    await session.commit()
+
+    await session.rollback()
+    target = await session.get(ColonyState, (1, 1), populate_existing=True)
+    assert target.total_cats == 1
+    assert target.scrap == 30.0  # 够造两座纸箱窝（5 废铁/座）
+
+
+async def test_cargo_limits_and_insufficient_materials(client, session) -> None:
+    await _boot(client, session, cats=4)
+    await session.rollback()
+    colony = await session.get(ColonyState, (1, 0))
+    colony.scrap = 200.0
+    await session.commit()
+
+    too_much = await client.post(
+        MIGRATE_URL, json={"slot": 1, "to_planet": 1, "count": 1, "cargo": {"scrap": 999}}
+    )
+    assert too_much.status_code == 400
+    assert too_much.json()["message"] == "BAD_REQUEST"
+
+    unsupported = await client.post(
+        MIGRATE_URL, json={"slot": 1, "to_planet": 1, "count": 1, "cargo": {"alloys": 5}}
+    )
+    assert unsupported.status_code == 400
+
+    await session.rollback()
+    colony = await session.get(ColonyState, (1, 0))
+    colony.scrap = 1.0
+    await session.commit()
+    poor = await client.post(
+        MIGRATE_URL, json={"slot": 1, "to_planet": 1, "count": 1, "cargo": {"scrap": 10}}
+    )
+    assert poor.status_code == 400
+    assert poor.json()["message"] == "INSUFFICIENT_RESOURCE"
+
+
 async def test_raided_route_is_delayed_not_lost(client, session, monkeypatch) -> None:
     """被劫掠 = 延误 10 分钟，绝不死猫（对齐"绝无死猫"原则）。"""
     await _boot(client, session, cats=4)
