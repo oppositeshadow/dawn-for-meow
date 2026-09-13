@@ -33,6 +33,15 @@ const researchSaving = computed(() => {
   return `· 再派 1 只极客猫可省约 ${formatDuration(saved)}`
 })
 
+// "科研起步窄门"：图灵终端建了但净电力为负 ⇒ 断电、科研永远不动，玩家看不出原因
+const blackoutHint = computed(() => {
+  const hasTerminal = (colony.facilities.turing_terminal ?? 0) > 0
+  if (!hasTerminal) return null
+  const net = colony.power?.net_kw ?? 0
+  if (net >= 0) return null
+  return `图灵终端断电了（净电力 ${net.toFixed(0)} kW）：造两座【猫力发电滚轮】并派猫踩轮，科研才会转起来`
+})
+
 // 效果人话化（《数值平衡表》§6.4）：百分比类键加成数、其余直接报数值
 const PERCENT_KEYS = new Set([
   'catnip_efficiency',
@@ -89,6 +98,9 @@ function statusText(node: TechNodeView): string {
 
 <template>
   <section class="panel flex h-full flex-col">
+    <div v-if="blackoutHint" class="border-b border-terminal-warn/40 bg-terminal-warn/5 px-3 py-2 text-[11px] text-terminal-warn">
+      {{ blackoutHint }}
+    </div>
     <div class="panel-title">
       <FlaskConical class="h-3.5 w-3.5" />
       <span>科技树</span>
