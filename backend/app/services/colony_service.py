@@ -593,6 +593,14 @@ async def load_state(
         raise BadRequest("BAD_REQUEST", f"未知星球 planet_id={target_planet}")
     if not planet.unlocked:
         raise BadRequest("PLANET_LOCKED", f"星球 {target_planet} 尚未解锁")
+    # 自愈：活跃星球若还没有基地（切到外星球后星级内容未落地），读档回落到母星，
+    # 否则玩家会卡在"读档 404"的死循环里（真机踩到过）。显式指定 planet_id 时不回落，让调用方拿到明确错误。
+    if planet_id is None and await session.get(ColonyState, (slot_id, target_planet)) is None:
+        logger.warning(
+            "活跃星球 %s 尚无基地，读档回落到母星（slot=%s）", target_planet, slot_id
+        )
+        target_planet = B.HOME_PLANET_ID
+        save.active_planet_id = target_planet
 
     now = now_timestamp()
     report, colony, facilities, labor = await settle_offline(session, save, target_planet, now=now)
