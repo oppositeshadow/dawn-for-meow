@@ -5,9 +5,11 @@ import { FlaskConical, Lock, CheckCircle2, Dices } from 'lucide-vue-next'
 import Badge from '@/components/common/Badge.vue'
 import GaugeBar from '@/components/common/GaugeBar.vue'
 import { useTechStore, type TechNodeView } from '@/stores/tech'
+import { useColonyStore } from '@/stores/colony'
 import { formatDuration } from '@/utils/format'
 
 const tech = useTechStore()
+const colony = useColonyStore()
 
 const TIER_NAMES: Record<number, string> = {
   1: 'Tier 1 · 避难所初建',
@@ -18,6 +20,18 @@ const TIER_NAMES: Record<number, string> = {
 
 onMounted(() => tech.startPolling(5000))
 onUnmounted(() => tech.stopPolling())
+
+// 把"派猫"与"省时间"连起来：在研节点上再派 1 只极客猫能省多少
+const researchSaving = computed(() => {
+  const rate = tech.tree?.research_points_per_sec ?? 0
+  const node = tech.tree?.researching
+  if (!node || rate <= 0) return null
+  const remaining = Math.max(0, node.display_cost - node.current_progress)
+  if (remaining <= 0) return null
+  const saved = remaining / rate - remaining / (rate + 1)
+  if (saved < 60) return null
+  return `· 再派 1 只极客猫可省约 ${formatDuration(saved)}`
+})
 
 // 效果人话化（《数值平衡表》§6.4）：百分比类键加成数、其余直接报数值
 const PERCENT_KEYS = new Set([
@@ -84,6 +98,7 @@ function statusText(node: TechNodeView): string {
       />
       <Badge :text="`${tech.tree?.unlocked_count ?? 0}/${tech.tree?.total_nodes ?? 19}`" />
       <span class="ml-auto text-[10px]">算力 {{ (tech.tree?.research_points_per_sec ?? 0).toFixed(1) }}/s</span>
+      <span v-if="researchSaving" class="text-[10px] text-terminal-warn">{{ researchSaving }}</span>
     </div>
 
     <div v-if="tech.tree?.researching" class="space-y-1 border-b border-terminal-line px-3 py-2">
