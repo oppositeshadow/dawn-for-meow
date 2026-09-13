@@ -282,6 +282,8 @@ def calculate_offline_progress(
     catnip_efficiency = max(0.0, _num(current_state.get("catnip_efficiency")))
     # 星球产粮系数（§15.3 第③步）：熔岩星 0.7 / 冰卫星 1.0 / 星带 0.9；母星 1.0
     planet_catnip = _num(current_state.get("planet_catnip_multiplier"), 1.0)
+    planet_scrap = _num(current_state.get("planet_scrap_multiplier"), 1.0)
+    planet_chips = _num(current_state.get("planet_chips_multiplier"), 1.0)
     catnip_prod_rate = (
         farmers * B.FARMER_CATNIP_PER_SEC * production_multiplier
         * (1.0 + catnip_efficiency) * max(0.0, planet_catnip)
@@ -303,9 +305,12 @@ def calculate_offline_progress(
         catnip_raw = catnip + net_catnip_rate * normal_duration
         catnip = _clamp_resource(catnip_raw, catnip_cap, "catnip", report["overflowed"])
         if scavengers:
-            scrap_raw = scrap + scavengers * B.SCAVENGER_SCRAP_PER_SEC * production_multiplier * normal_duration
+            scrap_raw = (
+                scrap + scavengers * B.SCAVENGER_SCRAP_PER_SEC * production_multiplier
+                * max(0.0, planet_scrap) * normal_duration
+            )
             scrap = _clamp_resource(scrap_raw, scrap_cap, "scrap", report["overflowed"])
-            chips_raw = chips + scavengers * B.SCAVENGER_CHIPS_PER_SEC * normal_duration
+            chips_raw = chips + scavengers * B.SCAVENGER_CHIPS_PER_SEC * max(0.0, planet_chips) * normal_duration
             chips = _clamp_resource(chips_raw, chips_cap, "chips", report["overflowed"])
         if geeks and not power["blackout"]:
             # 欠载时图灵终端强制断电，科研产出归 0

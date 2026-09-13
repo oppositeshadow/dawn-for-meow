@@ -288,6 +288,8 @@ def build_engine_state(
         "production_multiplier": production_multiplier,
         "catnip_efficiency": max(0.0, float(catnip_efficiency)),
         "planet_catnip_multiplier": B.planet_catnip_multiplier(colony.planet_id),
+        "planet_scrap_multiplier": B.planet_output_multiplier(colony.planet_id, "scrap"),
+        "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips"),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
@@ -562,7 +564,8 @@ def build_state_payload(
         "workstations": {job_id: int(labor.get(job_id, 0)) for job_id in (*B.PLANET_JOBS, *B.STAR_JOBS)},
         "workstation_limits": limits,
         "facilities": {facility_id: int(level) for facility_id, level in facilities.items()},
-        "suspicion": {"current": round(colony.suspicion, PROGRESS_PRECISION), "max": B.SUSPICION_MAX},
+        # 显式转 float：SQLite 会把手写 0 存成整数，round() 也就跟着返回 int，JSON 里就成了 `0`
+        "suspicion": {"current": round(float(colony.suspicion), PROGRESS_PRECISION), "max": B.SUSPICION_MAX},
         "tech_effects": {
             key: round(float(value), 4) for key, value in (tech_effects or {}).items()
         },

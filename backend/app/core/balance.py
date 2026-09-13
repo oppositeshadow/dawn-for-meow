@@ -365,6 +365,19 @@ STAR_PLANET_CATNIP_MULTIPLIER: dict[int, float] = {1: 0.7, 2: 1.0, 3: 0.9}
 def planet_catnip_multiplier(planet_id: int) -> float:
     """该星球的产粮系数（母星 1.0，外星球见 `STAR_PLANET_CATNIP_MULTIPLIER`）。"""
     return float(STAR_PLANET_CATNIP_MULTIPLIER.get(int(planet_id), 1.0))
+
+
+#: 三颗星球的专属产出加成（§15.3 第③步收官片）：熔岩星善冶炼、冰卫星善拆解、星带善拾荒
+STAR_PLANET_OUTPUT_BONUS: dict[int, dict[str, float]] = {
+    1: {"scrap": 0.9, "chips": 1.1},   # 熔岩星：石头多但脆，拆解略强
+    2: {"scrap": 1.0, "chips": 1.3},   # 冰卫星：低温元件好拆，芯片 +30%
+    3: {"scrap": 1.25, "chips": 0.9},  # 小行星带：满地碎星，废铁 +25%
+}
+
+
+def planet_output_multiplier(planet_id: int, resource: str) -> float:
+    """该星球某项产出的系数（母星与未登记资源一律 1.0）。"""
+    return float(STAR_PLANET_OUTPUT_BONUS.get(int(planet_id), {}).get(resource, 1.0))
 #: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
 STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
 STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)

@@ -40,7 +40,7 @@
       { "tech_name": "陨石捕获舱", "flavor_text": "张开嘴，等一块石头自己撞进来。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "unlock_action": "METEOR_CAPTURE" } },
       { "tech_name": "真空焊枪", "flavor_text": "没有空气，也能把两块铁焊死。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "vehicle_repair_speed": 1.2 } },
       { "tech_name": "星带伏击阵位", "flavor_text": "藏在石头阴影里，等车队自己开过来。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "ambush_bonus": 0.15 } },
-      { "tech_name": "氦-3 精馏塔", "flavor_text": "把气体分开，留下最贵的那一层。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "alloys", "out": "battery", "ratio": 10 } },
+      { "tech_name": "氦三精馏塔", "flavor_text": "把气体分开，留下最贵的那一层。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "alloys", "out": "battery", "ratio": 10 } },
       { "tech_name": "碎星航道图", "flavor_text": "画完这张图，星带就不再是迷宫。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "unlock_action": "STAR_LANE_MAP", "logistics_slots": 1 } }
     ]
   },
