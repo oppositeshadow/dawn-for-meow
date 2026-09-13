@@ -9,6 +9,14 @@ import { formatAmount } from '@/utils/format'
 
 const colony = useColonyStore()
 
+// 冷启动期（还没有农夫猫）的"饿"是**流程的一部分**，不是事故：
+// 第一只猫刚进窝、农田还没造，用引导口吻；真的有农夫却断粮才算事故，才配红色警报。
+const starvingHint = computed(() =>
+  (colony.workstations.farmer ?? 0) === 0
+    ? '猫猫在等开饭：点废墟攒废铁 → 造水培农田 → 派农夫上工'
+    : null,
+)
+
 const items = computed(() =>
   (
     [
@@ -65,7 +73,8 @@ const rateText = computed(() => {
     <div class="ml-auto flex items-center gap-3">
       <span class="stat-label">{{ rateText }}</span>
       <template v-if="colony.isStarving">
-        <Badge text="低血糖瘫软罢工" tone="crit" />
+        <Badge v-if="starvingHint" :text="starvingHint" tone="warn" />
+        <Badge v-else text="低血糖瘫软罢工" tone="crit" />
       </template>
     </div>
   </header>
