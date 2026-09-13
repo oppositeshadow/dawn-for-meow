@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.endpoints import colony, darknet, garden, military, radio, tech
+from app.api.endpoints import colony, darknet, garden, military, planet, radio, tech
 
 api_router = APIRouter()
 api_router.include_router(colony.router)
@@ -11,5 +11,6 @@ api_router.include_router(tech.router)
 api_router.include_router(military.router)
 api_router.include_router(garden.router)
 api_router.include_router(darknet.router)
+api_router.include_router(planet.router)
 
 __all__ = ["api_router"]

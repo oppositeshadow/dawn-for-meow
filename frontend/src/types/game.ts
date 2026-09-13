@@ -51,6 +51,24 @@ export interface SecurityState {
   policy: Record<string, boolean>
 }
 
+export interface LaunchSiloStage {
+  stage: number
+  name: string
+  cost: Record<string, number>
+  done: boolean
+  blocked: boolean
+}
+
+export interface LaunchSiloBlock {
+  level: number
+  max_level: number
+  stages: LaunchSiloStage[]
+  next_stage: LaunchSiloStage | null
+  can_advance: boolean
+  fortress_down: boolean
+  launched: boolean
+}
+
 export interface OfflineReport {
   elapsed_seconds: number
   applied_seconds: number
@@ -82,6 +100,7 @@ export interface ColonyStateData {
   facilities: Record<string, number>
   suspicion: SuspicionState
   security: SecurityState
+  launch_silo: LaunchSiloBlock
   offline_report: OfflineReport
 }
 

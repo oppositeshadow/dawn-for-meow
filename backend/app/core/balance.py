@@ -211,10 +211,10 @@ FACILITY_SPECS: dict[str, dict] = {
     },
     "launch_silo": {
         "name": "火箭垂直发射井",
-        "cost": {},              # 造价与阶段拆分待定稿（数值平衡表 §5 待定项）
+        "cost": {},              # 造价走 LAUNCH_SILO_STAGES（阶段式，不走递增曲线）
         "growth": None,
         "max_level": 4,
-        "buildable": False,      # 本轮只入等级 0 占位行，不开放建造入口
+        "buildable": True,       # v1.11：四阶段造价定稿（数值平衡表 §5）后开放建造
         "effects": {},
     },
 }
@@ -408,6 +408,18 @@ INTERCEPT_LOOT_ALLOYS = 1.0
 INTERCEPT_ENEMY_UNIT = "scout_roomba"
 
 #: 拾荒与远征目标锚点（耗时 / 警戒度代价 / 掉落 / 所需车型）；与 static/expedition_targets.json 一致
+#: 火箭垂直发射井四阶段（数值平衡表 §5 v1.11 提案）：每次建造推进一阶段，不走递增曲线
+LAUNCH_SILO_STAGES: tuple[dict, ...] = (
+    {"stage": 1, "name": "竖坑清理", "cost": {"scrap": 200.0, "alloys": 20.0}},
+    {"stage": 2, "name": "导轨浇筑", "cost": {"alloys": 60.0, "chips": 15.0}},
+    {"stage": 3, "name": "推进剂加注", "cost": {"alloys": 60.0, "chips": 15.0, "battery": 6.0}},
+    {"stage": 4, "name": "点火总装", "cost": {"alloys": 60.0, "chips": 20.0, "battery": 4.0}},
+)
+#: 阶段④点火总装的前置：必须先用巡航导弹摧毁除菌要塞（主线前后咬合）
+LAUNCH_SILO_FINAL_STAGE_REQUIRES_FORTRESS = True
+#: 升空后解锁的星球（星区星图：二号熔岩铸造星）
+LAUNCH_UNLOCKS_PLANET_IDS: tuple[int, ...] = (1,)
+
 EXPEDITION_TARGETS: dict[str, dict] = {
     "WALMART": {
         "name": "废弃沃尔玛",

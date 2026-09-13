@@ -12,6 +12,7 @@ import type {
   Resources,
   SuspicionState,
   SecurityState,
+  LaunchSiloBlock,
 } from '@/types/game'
 import { DISPLAY_BALANCE, clamp } from '@/utils/balance'
 import { clockText } from '@/utils/format'
@@ -70,6 +71,15 @@ export const useColonyStore = defineStore('colony', () => {
     cooldown_left_seconds: 0,
     go_dark: false,
     policy: {},
+  })
+  const launchSilo = ref<LaunchSiloBlock>({
+    level: 0,
+    max_level: 4,
+    stages: [],
+    next_stage: null,
+    can_advance: false,
+    fortress_down: false,
+    launched: false,
   })
   const policy = ref<HysteresisPolicy | null>(null)
   const offlineReport = ref<OfflineReport | null>(null)
@@ -134,6 +144,7 @@ export const useColonyStore = defineStore('colony', () => {
     facilities.value = data.facilities
     suspicion.value = data.suspicion
     security.value = data.security ?? security.value
+    launchSilo.value = data.launch_silo ?? launchSilo.value
     offlineReport.value = data.offline_report
     lastTickTime.value = data.last_tick_time
     lastSyncAt.value = Date.now()
@@ -303,6 +314,7 @@ export const useColonyStore = defineStore('colony', () => {
     facilities,
     suspicion,
     security,
+    launchSilo,
     policy,
     offlineReport,
     lastTickTime,

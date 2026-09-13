@@ -39,7 +39,7 @@ from app.models import (
     PlanetState,
     SaveSlot,
 )
-from app.models import MilitaryState, VehicleUnit
+from app.models import BossState, MilitaryState, VehicleUnit
 from app.models.military import VehicleStatus
 from app.core.seed_loader import facility_def_map
 from app.schemas.colony import SnapshotRequest
@@ -466,11 +466,27 @@ def build_state_payload(
     hangar_capacity: int,
     military: MilitaryState | None = None,
     garden_power_kw: float = 0.0,
+    fortress_down: bool = False,
     now: int,
 ) -> dict[str, Any]:
     cooldown_until = int(report.get("false_alarm_cooldown_until") or 0)
     go_dark = bool(report.get("go_dark", False))
     policy = dict(military.security_policy or {}) if military else {}
+    silo_level = int(facilities.get("launch_silo", 0))
+    silo_stages = [
+        {
+            "stage": int(stage["stage"]),
+            "name": stage["name"],
+            "cost": dict(stage["cost"]),
+            "done": silo_level >= int(stage["stage"]),
+            "blocked": bool(
+                B.LAUNCH_SILO_FINAL_STAGE_REQUIRES_FORTRESS
+                and int(stage["stage"]) == len(B.LAUNCH_SILO_STAGES)
+                and not fortress_down
+            ),
+        }
+        for stage in B.LAUNCH_SILO_STAGES
+    ]
     limits = B.workstation_limits(facilities, hangar_capacity=hangar_capacity)
     power = power_balance(
         facilities,
@@ -517,6 +533,15 @@ def build_state_payload(
         "workstation_limits": limits,
         "facilities": {facility_id: int(level) for facility_id, level in facilities.items()},
         "suspicion": {"current": round(colony.suspicion, PROGRESS_PRECISION), "max": B.SUSPICION_MAX},
+        "launch_silo": {
+            "level": silo_level,
+            "max_level": len(B.LAUNCH_SILO_STAGES),
+            "stages": silo_stages,
+            "next_stage": silo_stages[silo_level] if silo_level < len(silo_stages) else None,
+            "can_advance": bool(silo_level < len(silo_stages) and not silo_stages[silo_level]["blocked"]),
+            "fortress_down": fortress_down,
+            "launched": silo_level >= len(B.LAUNCH_SILO_STAGES),
+        },
         "security": {
             "decoy_count": int(military.decoy_count) if military else 0,
             "cooldown_until": cooldown_until or None,
@@ -560,6 +585,8 @@ async def load_state(
     report, colony, facilities, labor = await settle_offline(session, save, target_planet, now=now)
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
     military = await get_military(session, slot_id, target_planet)
+    boss_row = await session.get(BossState, slot_id)
+    fortress_down = bool((boss_row.bombardment_state or {}).get("fortress_destroyed_at")) if boss_row else False
     payload = build_state_payload(
         save,
         colony,
@@ -569,6 +596,7 @@ async def load_state(
         hangar_capacity=hangar,
         military=military,
         garden_power_kw=await get_garden_power_kw(session, slot_id, target_planet),
+        fortress_down=fortress_down,
         now=now,
     )
     await session.commit()
@@ -872,7 +900,25 @@ async def build_facility(
             f"【{B.FACILITY_SPECS[facility_id]['name']}】上限 {max_level} 级，当前 {current_level} 级",
         )
 
-    cost = B.facility_upgrade_cost(facility_id, current_level, count)
+    unlocked_names: list[str] = []
+    if facility_id == "launch_silo":
+        # 发射井走"阶段式"造价（数值平衡表 §5 v1.11），一次推进一个阶段
+        if count != 1:
+            raise BadRequest("BAD_REQUEST", "发射井一次只能推进一个阶段")
+        stage = B.LAUNCH_SILO_STAGES[current_level]
+        if (
+            B.LAUNCH_SILO_FINAL_STAGE_REQUIRES_FORTRESS
+            and int(stage["stage"]) == len(B.LAUNCH_SILO_STAGES)
+        ):
+            boss_now = await session.get(BossState, slot_id)
+            if not (boss_now and (boss_now.bombardment_state or {}).get("fortress_destroyed_at")):
+                raise BadRequest(
+                    "FORTRESS_INTACT",
+                    "【点火总装】需要先摧毁近轨除菌要塞（造巡航导弹并点火发射）",
+                )
+        cost = {resource: float(amount) for resource, amount in stage["cost"].items()}
+    else:
+        cost = B.facility_upgrade_cost(facility_id, current_level, count)
     missing = {
         resource: round(need - float(getattr(colony, resource)), RESOURCE_PRECISION)
         for resource, need in cost.items()
@@ -908,6 +954,20 @@ async def build_facility(
         narrative = FIRST_CAT_NARRATIVE
     if facility_id == "battery_bank":
         colony.battery_kwh_max = B.BATTERY_KWH_MAX
+    if facility_id == "launch_silo":
+        if row.level < len(B.LAUNCH_SILO_STAGES):
+            narrative = f"发射井阶段 {row.level}【{B.LAUNCH_SILO_STAGES[row.level - 1]['name']}】完成"
+        else:
+            # 升空：解锁星区星图（母星永不删档，仍作后勤大本营）
+            for planet_id in B.LAUNCH_UNLOCKS_PLANET_IDS:
+                planet_row = await session.get(PlanetState, (slot_id, planet_id))
+                if planet_row is not None and not planet_row.unlocked:
+                    planet_row.unlocked = True
+                    planet_row.unlocked_at = now_timestamp()
+                    unlocked_names.append(B.PLANETS.get(planet_id, str(planet_id)))
+            narrative = "🚀 喵星一号点火升空！避难所全员脱离母星，星区星图已展开" + (
+                f"（新开放：{'、'.join(unlocked_names)}）" if unlocked_names else ""
+            )
 
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
     limits = B.workstation_limits(facilities, hangar_capacity=hangar)
@@ -938,6 +998,7 @@ async def build_facility(
         "workstation_limits": limits,
         "power_net_kw": power["net_kw"],
         "narrative": narrative,
+        "unlocked_planets": unlocked_names,
         "unlock_hint": definition.get("unlock"),
     }
 

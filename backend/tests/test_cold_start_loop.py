@@ -143,12 +143,31 @@ class TestFacilityBuild:
         second = (await _build(client, "farm_plot")).json()["data"]
         assert second["workstation_limits"]["farmer"] == 4
 
-    async def test_launch_silo_is_placeholder_only(self, client):
-        """数值平衡表 §5 待定项：发射井只入等级 0 占位行，不开放建造入口。"""
+    async def test_launch_silo_advances_by_stage_and_needs_fortress(self, client, session):
+        """v1.11：发射井开放建造（四阶段式），但阶段④点火总装要先摧毁除菌要塞。"""
         await _bootstrap(client)
-        response = await _build(client, "launch_silo")
-        assert response.status_code == 400
-        assert "尚未定稿" in response.json()["detail"]
+        await session.rollback()
+        from app.models import TechRecord
+        from app.models.tech import TechStatus
+
+        tech = await session.get(TechRecord, (1, 0, "tech_launch_silo_engineering"))
+        tech.status = TechStatus.UNLOCKED  # 发射井是 Tier 4 科技的进阶设施
+        colony = await session.get(ColonyState, (1, 0))
+        colony.scrap_max, colony.scrap = 400.0, 400.0
+        colony.alloys_max, colony.alloys = 400.0, 400.0
+        colony.chips_max, colony.chips = 200.0, 200.0
+        colony.battery_max, colony.battery = 50.0, 20.0
+        await session.commit()
+
+        first = await _build(client, "launch_silo")
+        assert first.status_code == 200
+        assert first.json()["data"]["level"] == 1
+        assert first.json()["data"]["cost_paid"] == {"scrap": 200.0, "alloys": 20.0}
+        assert (await _build(client, "launch_silo")).status_code == 200  # 阶段②
+        assert (await _build(client, "launch_silo")).status_code == 200  # 阶段③
+        blocked = await _build(client, "launch_silo")  # 阶段④
+        assert blocked.status_code == 400
+        assert blocked.json()["message"] == "FORTRESS_INTACT"
 
     async def test_unknown_facility_rejected(self, client):
         await _bootstrap(client)

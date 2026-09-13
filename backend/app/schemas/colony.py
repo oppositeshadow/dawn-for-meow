@@ -64,6 +64,26 @@ class SecurityBlock(BaseModel):
     policy: dict[str, bool] = Field(default_factory=dict)
 
 
+class LaunchSiloStage(BaseModel):
+    stage: int
+    name: str
+    cost: dict[str, float] = Field(default_factory=dict)
+    done: bool = False
+    blocked: bool = False
+
+
+class LaunchSiloBlock(BaseModel):
+    """火箭垂直发射井（模块 K）阶段视图。"""
+
+    level: int = 0
+    max_level: int = 4
+    stages: list[LaunchSiloStage] = Field(default_factory=list)
+    next_stage: LaunchSiloStage | None = None
+    can_advance: bool = True
+    fortress_down: bool = False
+    launched: bool = False
+
+
 class OfflineReport(BaseModel):
     """《离线休整报表》（A-1 ~ A-6 的可观测字段）。"""
 
@@ -97,6 +117,7 @@ class ColonyStateData(BaseModel):
     facilities: dict[str, int]
     suspicion: SuspicionBlock
     security: SecurityBlock = SecurityBlock()
+    launch_silo: LaunchSiloBlock = LaunchSiloBlock()
     offline_report: OfflineReport
 
 
@@ -196,6 +217,7 @@ class BuildResult(BaseModel):
     power_net_kw: float
     narrative: str | None = None
     unlock_hint: dict | None = None
+    unlocked_planets: list[str] = Field(default_factory=list)
 
 
 class BuildEnvelope(BaseModel):
