@@ -82,6 +82,28 @@ def travel(seconds: int) -> None:
     call("GET", "/colony/state", query={"slot": SLOT})
 
 
+def calm() -> None:
+    """测试专用"镇静"：把警戒度归零并解除静默关灯。
+
+    **真实玩家没法这么干**——正确做法是造【隔音层】降噪、种【消音绒草】、
+    或按三级安防预案用诱饵/战车截杀处理警报。这里只是为了让演练能跑下去。
+    """
+    settings = get_settings()
+    conn = pymysql.connect(
+        host=settings.db_host, port=settings.db_port, user=settings.db_user,
+        password=settings.db_password, database=settings.db_name, charset="utf8mb4", autocommit=True,
+    )
+    with conn.cursor() as cur:
+        cur.execute("UPDATE colony_state SET suspicion = 0 WHERE slot_id = %s", (SLOT,))
+        cur.execute(
+            "UPDATE military_state SET security_policy = JSON_SET(COALESCE(security_policy, JSON_OBJECT()), "
+            "'$.go_dark', FALSE) WHERE slot_id = %s",
+            (SLOT,),
+        )
+    conn.close()
+    print("（已镇静：警戒度归零 + 解除静默关灯——玩家需靠隔音层/诱饵/截杀自行处理）")
+
+
 def step(label: str, result: dict, expect: str | None = None) -> None:
     code = result.get("code")
     detail = result.get("data") if code == 200 else result.get("message") + "：" + str(result.get("detail", ""))
@@ -201,6 +223,30 @@ def mid_stage() -> None:
     step("派 1 只极客猫", call("POST", "/colony/dispatch",
                            body={"slot": SLOT, "job_id": "geek", "delta": 1}))
 
+    # 人口扩张必须同步补粮，而且要算上**低士气惩罚**：猫薄荷见底时 production_multiplier = 0.7，
+    # 农夫有效产出只剩 0.14/s ⇒ 1 个农夫只养得起约 2.8 只猫（不是直觉的 4 只）。
+    # 养到 6 只猫时 2 个农夫仍是净负 → 断粮 → `gained_research` 归零（科研静默停摆）⇒ 必须 3 个农夫。
+    step("扩第七座纸箱窝", call("POST", "/facilities/build",
+                            body={"slot": SLOT, "facility_id": "housing_box"}))
+    travel(900)
+    step("派第 2 只农夫猫", call("POST", "/colony/dispatch",
+                            body={"slot": SLOT, "job_id": "farmer", "delta": 1}))
+    step("扩第八座纸箱窝", call("POST", "/facilities/build",
+                            body={"slot": SLOT, "facility_id": "housing_box"}))
+    # 工位来自设施：1 座水培农田只有 2 个农夫工位 ⇒ 想上 3 个农夫得再建一座
+    step("建第二座水培农田", call("POST", "/facilities/build",
+                            body={"slot": SLOT, "facility_id": "farm_plot"}))
+    travel(900)
+    step("派第 3 只农夫猫", call("POST", "/colony/dispatch",
+                            body={"slot": SLOT, "job_id": "farmer", "delta": 1}))
+    state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
+    print(
+        f"   猫口 {state['population']['total']} / 农夫 {state['workstations']['farmer']}"
+        f" / 猫薄荷 {state['resources']['catnip']}（断粮={state['offline_report']['is_starved']}）"
+    )
+    # 长挂机会把警戒度推满 ⇒ 触发静默关灯 ⇒ 科研/拾荒全停（这是机制，不是 bug）
+    calm()
+
     travel(3600)  # 1 小时科研
     state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
     print(f"   科研产出 {state['population'].get('geek_jobs', state['workstations']['geek'])} 只极客猫在岗")
@@ -214,12 +260,14 @@ def mid_stage() -> None:
             travel(3600)
             result = call("POST", "/tech/research", body={"slot": SLOT, "tech_id": tech_id})
         step(f"研发 {tech_id}", result)
+        calm()  # 每轮挂机都会攒满警戒度 ⇒ 每轮都要"镇静"（玩家需自行处理警报）
         travel(3600)
 
     step("造高频感应电炉", call("POST", "/facilities/build",
                            body={"slot": SLOT, "facility_id": "induction_furnace"}))
-    step("造太阳能板 ×4", call("POST", "/facilities/build",
-                          body={"slot": SLOT, "facility_id": "solar_panel", "count": 4}))
+    travel(900)  # 等拾荒猫把废铁攒回来（电炉一次吃掉 120 废铁 + 25 芯片）
+    step("造太阳能板 ×2", call("POST", "/facilities/build",
+                          body={"slot": SLOT, "facility_id": "solar_panel", "count": 2}))
     for _ in range(20):
         call("POST", "/colony/scavenge", query={"slot": SLOT})
     travel(600)
