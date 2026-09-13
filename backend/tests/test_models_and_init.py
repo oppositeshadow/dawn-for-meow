@@ -267,6 +267,10 @@ class TestSeedConsistency:
             for effect_key, effect_value in seed["effects"].items():
                 assert spec["effects"][effect_key] == effect_value, f"{facility_id}.{effect_key}"
             assert set(seed["effects"]) == set(spec["effects"]), facility_id
+            # 星球限定：JSON 里的 planet_scope 必须与 balance 的声明一致（否则前端会置灰错设施）
+            assert seed.get("planet_scope") == B.facility_planet_scope(facility_id), (
+                f"{facility_id}.planet_scope"
+            )
 
     def test_job_seed_matches_balance(self):
         seeds = {item["job_id"]: item for item in job_defs()}

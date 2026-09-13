@@ -5,11 +5,14 @@ import { Hammer, Pickaxe } from 'lucide-vue-next'
 import Badge from '@/components/common/Badge.vue'
 import { useColonyStore } from '@/stores/colony'
 import { useFacilitiesStore } from '@/stores/facilities'
+import { usePlanetStore } from '@/stores/planet'
 import type { FacilityDefinition } from '@/types/game'
 import { RESOURCE_LABELS } from '@/utils/format'
 
 const colony = useColonyStore()
 const facilitiesStore = useFacilitiesStore()
+const planetsStore = usePlanetStore()
+if (planetsStore.planets.length === 0) void planetsStore.refresh() // 专属设施的归属名要能显示
 
 const list = computed(() =>
   facilitiesStore.facilities.map((definition) => {
@@ -21,6 +24,12 @@ const list = computed(() =>
     const maxed = definition.max_level !== null && level >= definition.max_level
     const buildable = definition.buildable !== false
     const blocked = isSilo && silo.next_stage?.blocked === true
+    // 星球限定（§15.4）：不属于本星的专属设施置灰，并写明归属，避免"点一下才知道不能建"
+    const scope = definition.planet_scope ?? null
+    const wrongPlanet = scope !== null && scope !== colony.planetId
+    const scopeName = wrongPlanet
+      ? planetName(scope as number)
+      : null
     return {
       definition,
       level,
@@ -28,12 +37,18 @@ const list = computed(() =>
       maxed,
       buildable,
       blocked,
+      wrongPlanet,
+      scopeName,
       stageName: isSilo ? silo.next_stage?.name : null,
       affordable: facilitiesStore.affordable(cost, colony.resources),
       effectText: describe(definition),
     }
   }),
 )
+
+function planetName(planetId: number): string {
+  return planetsStore.planets.find((item) => item.planet_id === planetId)?.name ?? `星球 ${planetId}`
+}
 
 function describe(definition: FacilityDefinition): string {
   const effects = definition.effects
@@ -80,14 +95,15 @@ function costText(cost: Record<string, number>): string {
           <Badge v-if="!item.buildable" text="未定稿" tone="warn" />
           <Badge v-else-if="item.maxed" text="已满级" tone="accent" />
           <Badge v-if="item.blocked" text="需先摧毁除菌要塞" tone="warn" />
+          <Badge v-if="item.wrongPlanet" :text="`仅限${item.scopeName}`" tone="warn" />
           <span v-else-if="item.stageName" class="text-[10px] text-terminal-dim">{{ item.stageName }}</span>
           <button
             class="btn ml-auto"
-            :disabled="colony.busy || !item.buildable || item.maxed || item.blocked || !item.affordable"
+            :disabled="colony.busy || !item.buildable || item.maxed || item.blocked || item.wrongPlanet || !item.affordable"
             @click="colony.build(item.definition.facility_id)"
           >
             <Pickaxe class="mr-1 inline h-3 w-3" />
-            {{ item.maxed ? '已满' : costText(item.cost) || '待定稿' }}
+            {{ item.maxed ? '已满' : item.wrongPlanet ? '属地不符' : costText(item.cost) || '待定稿' }}
           </button>
         </div>
         <p class="mt-1 text-[10px] text-terminal-dim">{{ item.effectText }}</p>

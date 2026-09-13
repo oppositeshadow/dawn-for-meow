@@ -216,6 +216,8 @@ export interface FacilityDefinition {
   buildable?: boolean
   effects: FacilityEffect
   unlock?: { tech_id?: string; facility_id?: string }
+  /** 星球限定（《数值平衡表》§15.4）：非空则只有该 planet_id 能建 */
+  planet_scope?: number | null
   description: string
 }
 

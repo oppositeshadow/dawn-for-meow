@@ -245,7 +245,8 @@
       "effects": {
         "smelt_speed_bonus": 0.3
       },
-      "description": "熔岩星专属：把地热直接接进熔炼线，每座 +30% 熔炼速度（数值平衡表 §15.4）。"
+      "description": "熔岩星专属：把地热直接接进熔炼线，每座 +30% 熔炼速度（数值平衡表 §15.4）。",
+      "planet_scope": 1
     },
     {
       "facility_id": "cryo_salvage_bench",
@@ -261,7 +262,8 @@
         "planet_output_bonus": "chips",
         "output_bonus": 0.3
       },
-      "description": "冰卫星专属：低温让元件脆化，每座 +0.3 芯片产出系数（相加不相乘）。"
+      "description": "冰卫星专属：低温让元件脆化，每座 +0.3 芯片产出系数（相加不相乘）。",
+      "planet_scope": 2
     },
     {
       "facility_id": "asteroid_sorter",
@@ -277,7 +279,8 @@
         "planet_output_bonus": "scrap",
         "output_bonus": 0.35
       },
-      "description": "小行星带专属：自动分选碎星，每座 +0.35 废铁产出系数（相加不相乘）。"
+      "description": "小行星带专属：自动分选碎星，每座 +0.35 废铁产出系数（相加不相乘）。",
+      "planet_scope": 3
     }
   ]
 }
