@@ -61,6 +61,37 @@ def main() -> None:
     for furnaces in (1, 2, 3):
         print(f"  {furnaces} 座电炉 → 材料瓶颈 {silo_material_hours(furnaces):.1f} h")
 
+    print("\n== 节点级内容节奏：什么时候解锁什么东西（1 / 2 / 4 只极客的累计小时）==")
+    nodes = load_seed("techs_planet0.json")["techs"]
+    tiers = sorted({int(node["tier"]) for node in nodes})
+    tier_effective = {
+        tier: sum(float(n["target_cost"]) for n in nodes if int(n["tier"]) == tier)
+        * B.TECH_TIER_TIME_DISCOUNT.get(tier - 1, 1.0)
+        for tier in tiers
+    }
+    elapsed: dict[int, float] = {}  # 极客数 → 累计算力
+    for geeks in (1, 2, 4):
+        elapsed[geeks] = 0.0
+    for tier in tiers:
+        discount = B.TECH_TIER_TIME_DISCOUNT.get(tier - 1, 1.0)
+        for node in [n for n in nodes if int(n["tier"]) == tier]:
+            node_cost = float(node["target_cost"]) * discount
+            for geeks in elapsed:
+                elapsed[geeks] += node_cost
+            payload = node.get("buff_payload") or {}
+            unlocks = [
+                *(payload.get("unlock_facility") or []),
+                *( [payload["unlock_system"]] if payload.get("unlock_system") else [] ),
+                *([f"职业:{payload['unlock_job']}"] if payload.get("unlock_job") else []),
+                *([f"兵种:{payload['unlock_unit']}"] if payload.get("unlock_unit") else []),
+                *([f"系统:{payload['unlock_refine']}精炼"] if payload.get("unlock_refine") else []),
+            ]
+            if not unlocks:
+                continue
+            times = "  ".join(f"{geeks} 只：{elapsed[geeks] / max(1, geeks) / 3600:>5.2f} h" for geeks in (1, 2, 4))
+            print(f"  {times}   {node['tech_name']} → {'、'.join(unlocks)}")
+        _ = tier_effective
+
 
 if __name__ == "__main__":
     main()
