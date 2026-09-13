@@ -16,7 +16,7 @@ def combat_power(unit: Mapping[str, float]) -> float:
     """战力评分（仅用于界面排序，不参与伤害结算）。"""
     weights = B.COMBAT_POWER_WEIGHTS
     layers = float(unit.get("shield", 0)) + float(unit.get("armor", 0)) + float(unit.get("hull", 0))
-    armor_reduction = min(B.ARMOR_REDUCTION_MAX, float(unit.get("armor", 0)) / B.ARMOR_REDUCTION_DIVISOR)
+    armor_reduction = armor_reduction_ratio(float(unit.get("armor", 0)))
     return round(
         weights["layers"] * layers
         + weights["dps"] * float(unit.get("dps", 0))
@@ -32,6 +32,16 @@ def morale_multiplier(catnip_ratio: float) -> float:
     if catnip_ratio < B.MORALE_LOW_THRESHOLD:
         return B.MORALE_LOW_MULTIPLIER
     return 1.0
+
+
+def armor_reduction_ratio(armor: float) -> float:
+    """装甲减伤率（《数值平衡表》§9.2）。
+
+    现行口径：`min(上限, 装甲 ÷ 400)` —— **线性爬升 + 硬封顶**，封顶在装甲 300 处发生。
+    > 待定稿：改用 MOBA 式凸曲线（`reduction = max × 装甲 ÷ (装甲 + K)`）可消除"高装甲浪费"，
+    > 对比数据见 §9.2 的量化表；本函数是唯一的减伤入口，换曲线只需改这一处。
+    """
+    return min(B.ARMOR_REDUCTION_MAX, float(armor) / B.ARMOR_REDUCTION_DIVISOR)
 
 
 def resolve_attack(
@@ -64,7 +74,7 @@ def resolve_attack(
     if remaining > 0:
         armor = float(target.get("armor", 0.0))
         if armor > 0:
-            armor_reduction = min(B.ARMOR_REDUCTION_MAX, armor / B.ARMOR_REDUCTION_DIVISOR)
+            armor_reduction = armor_reduction_ratio(armor)
             real_damage_to_hull = remaining * (1.0 - armor_reduction)
             if damage_type in ("KINETIC", "EXPLOSIVE"):
                 # 破甲系数：取"全局基础"与"该车模块"的较大值（钻头模块提高它，不削弱别人）
