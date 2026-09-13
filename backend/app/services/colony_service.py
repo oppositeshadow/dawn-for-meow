@@ -619,6 +619,10 @@ async def load_state(
         save.active_planet_id = target_planet
 
     now = now_timestamp()
+    # 在途航线到点即交付（§15.3 第②步）：读档时一并结算，避免"必须打开星图才到货"
+    from app.services import planet_service
+
+    await planet_service.settle_routes(session, save.slot_id, now=now)
     report, colony, facilities, labor = await settle_offline(session, save, target_planet, now=now)
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
     military = await get_military(session, slot_id, target_planet)

@@ -7,19 +7,158 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import balance as B
 from app.core.balance import RESOURCE_CAPS
-from app.core.errors import NotFound
-from app.models import ColonyState, GardenState, MilitaryState, PlanetState
+from app.core.errors import BadRequest, InsufficientResource, NotFound
+from app.models import BossState, ColonyState, GardenState, LaborBucket, MilitaryState, PlanetState
 from app.schemas.planet_agent import PlanetBiome
 from app.services.game_init_service import now_timestamp
 from app.services.llm_service import LlmScene, get_llm_service
 
 logger = logging.getLogger("dawn_meow.planet")
+
+#: 迁猫时的出发/到达星球名称，仅用于文案
+def _route_id(from_planet: int, to_planet: int, departed_at: int) -> str:
+    return f"route_{from_planet}_{to_planet}_{departed_at}"
+
+
+def is_raided(slot_id: int, route_id: str, *, chance: float) -> bool:
+    """确定性判定是否被劫掠（同一趟航线结果唯一，便于复现与测试）。"""
+    digest = hashlib.sha256(f"{slot_id}:{route_id}".encode("utf-8")).hexdigest()[:8]
+    return int(digest, 16) / 0xFFFFFFFF < chance
+
+
+async def route_slots(session: AsyncSession, slot_id: int, to_planet: int) -> int:
+    """该星球当前可用的航线带宽：基础 2 条 + 星际物流调度官每只 +1，封顶 4。"""
+    bucket = await session.get(LaborBucket, (slot_id, B.HOME_PLANET_ID, "logistics"))
+    officers = int(bucket.cat_count) if bucket else 0
+    return min(B.STAR_ROUTE_MAX_SLOTS, B.STAR_ROUTE_BASE_SLOTS + officers)
+
+
+async def migrate_cats(
+    session: AsyncSession,
+    *,
+    slot_id: int = B.DEFAULT_SLOT_ID,
+    from_planet: int = B.HOME_PLANET_ID,
+    to_planet: int,
+    count: int,
+    now: int | None = None,
+) -> dict[str, Any]:
+    """派一趟跨星航线把猫口从母星运到外星球（《数值平衡表》§15.3 第②步）。
+
+    * 猫口**出发即离开母星**，抵达时才计入目标星球（在途期间两边都不占用工位）；
+    * 带宽：基础 2 条在途航线/星，星际物流调度官每只 +1（封顶 4）；
+    * 被劫掠 = **延误 10 分钟**（绝不死猫）。
+    """
+    if to_planet == from_planet:
+        raise BadRequest("BAD_REQUEST", "起点与终点不能是同一颗星球")
+    if count < 1 or count > B.STAR_ROUTE_MAX_CATS_PER_TRIP:
+        raise BadRequest(
+            "BAD_REQUEST", f"单趟可运 1~{B.STAR_ROUTE_MAX_CATS_PER_TRIP} 只猫，收到 {count}"
+        )
+    target = await session.get(PlanetState, (slot_id, to_planet))
+    if target is None:
+        raise BadRequest("BAD_REQUEST", f"未知星球 planet_id={to_planet}")
+    if not target.unlocked:
+        raise BadRequest("PLANET_LOCKED", f"【{B.PLANETS.get(to_planet, to_planet)}】尚未解锁")
+    await ensure_star_colony(session, slot_id, to_planet, now=now)
+
+    source = await session.get(ColonyState, (slot_id, from_planet))
+    if source is None:
+        raise NotFound("COLONY_STATE_NOT_FOUND", f"槽位 {slot_id} 母星没有基地状态")
+    if int(source.job_idle) < count:
+        raise InsufficientResource(
+            detail=f"需要 {count} 只空闲猫，母星当前只有 {int(source.job_idle)} 只（先去工位调度里收回）"
+        )
+
+    routes = [dict(item) for item in (target.logistics_routes or [])]
+    if len(routes) >= await route_slots(session, slot_id, to_planet):
+        raise BadRequest(
+            "STAR_ROUTE_SLOTS_FULL",
+            f"【{B.PLANETS.get(to_planet, to_planet)}】的在途航线已达带宽上限（{len(routes)} 条），等这趟抵达再安排",
+        )
+
+    stamped = now if now is not None else now_timestamp()
+    route = {
+        "route_id": _route_id(from_planet, to_planet, stamped),
+        "from_planet": from_planet,
+        "to_planet": to_planet,
+        "cat_count": int(count),
+        "departed_at": stamped,
+        "arrives_at": stamped + int(B.STAR_ROUTE_SECONDS),
+        "raided": False,
+    }
+    routes.append(route)
+    target.logistics_routes = routes  # JSON 列必须整条替换
+
+    # 出发即离港：母星的猫口立刻减少，抵达时再计入目标星球
+    source.total_cats = int(source.total_cats) - count
+    source.job_idle = int(source.job_idle) - count
+    await session.flush()
+    logger.info(
+        "跨星航线出发：slot=%s %s→%s %s 只，预计 %s 秒抵达",
+        slot_id, from_planet, to_planet, count, int(B.STAR_ROUTE_SECONDS),
+    )
+    return {
+        "route": route,
+        "source_total_cats": int(source.total_cats),
+        "source_idle_cats": int(source.job_idle),
+        "eta_seconds": int(B.STAR_ROUTE_SECONDS),
+        "slots_used": len(routes),
+        "slots_total": await route_slots(session, slot_id, to_planet),
+    }
+
+
+async def settle_routes(
+    session: AsyncSession, slot_id: int, *, now: int | None = None
+) -> list[dict[str, Any]]:
+    """结算所有星球的在途航线：到点交付猫口，被劫掠则延误 10 分钟。"""
+    stamped = now if now is not None else now_timestamp()
+    boss = await session.get(BossState, slot_id)
+    rage = float(boss.rage) if boss else 0.0
+    chance = B.STAR_ROUTE_RAID_CHANCE * (2 if rage >= B.STAR_ROUTE_RAID_RAGE_THRESHOLD else 1)
+
+    events: list[dict[str, Any]] = []
+    rows = (
+        await session.execute(select(PlanetState).where(PlanetState.slot_id == slot_id))
+    ).scalars().all()
+    for planet in rows:
+        routes = [dict(item) for item in (planet.logistics_routes or [])]
+        if not routes:
+            continue
+        pending: list[dict[str, Any]] = []
+        for route in routes:
+            if int(route.get("arrives_at", 0)) > stamped:
+                pending.append(route)
+                continue
+            route_id = str(route.get("route_id") or "")
+            if is_raided(slot_id, route_id, chance=chance):
+                route["raided"] = True
+                route["arrives_at"] = stamped + int(B.STAR_ROUTE_RAID_DELAY_SECONDS)
+                pending.append(route)
+                events.append(
+                    {"type": "ROUTE_RAIDED", "route_id": route_id, "delay_seconds": int(B.STAR_ROUTE_RAID_DELAY_SECONDS)}
+                )
+                continue
+            target = await session.get(ColonyState, (slot_id, int(route["to_planet"])))
+            if target is None:  # 目标星球基地被拆（理论上不会发生）⇒ 猫口回母星，绝不凭空消失
+                target = await session.get(ColonyState, (slot_id, B.HOME_PLANET_ID))
+            if target is not None:
+                target.total_cats = int(target.total_cats) + int(route["cat_count"])
+                target.job_idle = int(target.job_idle) + int(route["cat_count"])
+            events.append(
+                {"type": "ROUTE_ARRIVED", "route_id": route_id, "to_planet": int(route["to_planet"]),
+                 "cat_count": int(route["cat_count"])}
+            )
+        planet.logistics_routes = pending
+    await session.flush()
+    return events
 
 #: 本地兜底生态池（LLM 不可用时使用；加内容只改这里）
 FALLBACK_BIOMES: dict[int, PlanetBiome] = {

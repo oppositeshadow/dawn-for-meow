@@ -335,6 +335,20 @@ TECH_REROLL_COOLDOWN_SECONDS = 600
 
 #: 星际特化科技成本阶梯（LLM 只填命题，数值由 Python 夹紧）
 STAR_TECH_TIER_COSTS: tuple[float, ...] = (500.0, 2000.0, 8000.0)
+
+# ---- 跨星物流与迁猫（《数值平衡表》§15.3 第②步，v1.21 落地） ----
+#: 一趟航线耗时（秒）
+STAR_ROUTE_SECONDS = 60.0
+#: 每颗星球的基础航线带宽（条），星际物流调度官每只 +1，封顶 4
+STAR_ROUTE_BASE_SLOTS = 2
+STAR_ROUTE_MAX_SLOTS = 4
+#: 单趟最多运几只猫
+STAR_ROUTE_MAX_CATS_PER_TRIP = 20
+#: 被劫掠概率（欧米伽 rage ≥ 60 时翻倍）
+STAR_ROUTE_RAID_CHANCE = 0.08
+STAR_ROUTE_RAID_RAGE_THRESHOLD = 60
+#: 被劫掠的后果：**延误**而不是死猫（对齐"绝无死猫"原则）
+STAR_ROUTE_RAID_DELAY_SECONDS = 600.0
 #: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
 STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
 STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)

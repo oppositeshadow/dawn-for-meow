@@ -26,11 +26,24 @@ class PlanetSwitchRequest(BaseModel):
     planet_id: int = Field(ge=0, le=3)
 
 
+class PlanetMigrateRequest(BaseModel):
+    slot: int = Field(default=1, ge=1, le=3)
+    from_planet: int = Field(default=B.HOME_PLANET_ID, ge=0, le=3)
+    to_planet: int = Field(ge=1, le=3)
+    count: int = Field(ge=1, le=B.STAR_ROUTE_MAX_CATS_PER_TRIP)
+
+
 @router.get("/planet/state", response_model=MilitaryEnvelope)
 async def get_planet_state(
     slot: int = Query(default=1, ge=1, le=3),
     session: AsyncSession = Depends(get_session),
 ) -> MilitaryEnvelope:
+    # 顺带结算是"读一眼星图就交付"：在途航线到点即为玩家入库
+    from app.services import planet_service
+
+    events = await planet_service.settle_routes(session, slot)
+    if events:
+        await session.commit()
     rows = (
         await session.execute(
             select(PlanetState).where(PlanetState.slot_id == slot).order_by(PlanetState.planet_id)
@@ -54,8 +67,28 @@ async def get_planet_state(
                 for row in rows
             ],
             "note": "母星不删档：升空后仍作星系后勤大本营（跨星空投航线见 logistics_routes）",
+            "last_route_events": events,
         },
     )
+
+
+@router.post("/planet/migrate", response_model=MilitaryEnvelope)
+async def post_planet_migrate(
+    payload: PlanetMigrateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    """派一趟跨星航线把猫口从母星运到外星球（《数值平衡表》§15.3 第②步）。"""
+    from app.services import planet_service
+
+    data = await planet_service.migrate_cats(
+        session,
+        slot_id=payload.slot,
+        from_planet=payload.from_planet,
+        to_planet=payload.to_planet,
+        count=payload.count,
+    )
+    await session.commit()
+    return MilitaryEnvelope(code=200, data=data)
 
 
 @router.post("/planet/switch", response_model=MilitaryEnvelope)
