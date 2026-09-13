@@ -27,6 +27,8 @@ DUELS = (
     ("轻装猫车×3 vs 清扫蜘蛛-03", "light_car", "heavy_cleaner_03", 3),
     ("装甲猫车×2 vs 突击无人机", "armored_car", "assault_drone", 2),
     ("轻装猫车×1 vs 侦察扫地机", "light_car", "scout_roomba", 1),
+    ("破拆机甲×3 vs 关底近卫（决战编队）", "breaker_mech", "heavy_guard_mech", 3),
+    ("破拆机甲×4 vs 关底近卫（决战编队）", "breaker_mech", "heavy_guard_mech", 4),
 )
 
 

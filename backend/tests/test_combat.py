@@ -32,11 +32,22 @@ class TestCombatEngine:
         assert target["shield"] == 0.0
         assert damage > 0 and not ejected
 
-    def test_armor_reduction_uses_400_divisor_and_caps_at_75pct(self):
-        """修正项：减伤率 = min(75%, 装甲 ÷ 400)，所以 400 装甲才吃满上限。"""
-        target = {"shield": 0.0, "armor": 400.0, "hull": 1000.0, "armor_max": 400.0}
+    def test_armor_reduction_follows_moba_curve(self):
+        """§9.2.1（v1.37）：减伤率 = 75% × 装甲 ÷ (装甲 + 100)——装甲 200 处仍是 50%。"""
+        target = {"shield": 0.0, "armor": 200.0, "hull": 1000.0, "armor_max": 200.0}
         _, damage, _ = resolve_attack(100.0, "LASER", target)
-        assert damage == pytest.approx(25.0)  # 100 × (1 − 0.75)
+        assert damage == pytest.approx(50.0)  # 100 × (1 − 0.50)
+
+    def test_armor_curve_has_no_plateau(self):
+        """凸曲线：装甲越高减伤越高，且**不存在"再加装甲也没用"的平段**。"""
+        from app.core.combat_engine import armor_reduction_ratio
+
+        values = [armor_reduction_ratio(a) for a in (200, 300, 400, 500)]
+        assert values == sorted(values)
+        assert len(set(values)) == 4  # 旧线性口径在 300/400/500 上是同一个值
+        assert armor_reduction_ratio(200) == pytest.approx(0.50)
+        assert armor_reduction_ratio(430) == pytest.approx(0.75 * 430 / 530)
+        assert armor_reduction_ratio(10_000) < 0.75  # 渐近而不触顶
 
     def test_kinetic_shreds_armor_and_armor_max(self):
         """破甲：KINETIC/EXPLOSIVE 削蚀装甲上限，跨战斗持久化。"""

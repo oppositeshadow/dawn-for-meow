@@ -431,8 +431,13 @@ GO_DARK_RECOVER_THRESHOLD = 20.0                # 衰减至 20 点后自动复�
 # §9 战斗数值与相克
 # ======================================================================
 SHIELD_DAMAGE_MULTIPLIER: dict[str, float] = {"LASER": 1.8, "KINETIC": 0.8, "EXPLOSIVE": 0.8}
-ARMOR_REDUCTION_DIVISOR = 400.0                 # 减伤率 = min(75%, 装甲 ÷ 400)
-ARMOR_REDUCTION_MAX = 0.75
+#: 装甲减伤改用 **MOBA 式凸曲线**（《数值平衡表》§9.2.1，v1.37 拍板）：
+#: `减伤率 = 上限 × 装甲 ÷ (装甲 + K)`——没有硬封顶，每一点装甲都有意义；
+#: K=100 时装甲 200 处的减伤率与旧线性口径**完全一致（50%）**，是平滑接续点。
+ARMOR_REDUCTION_CURVE_K = 100.0
+ARMOR_REDUCTION_MAX = 0.75                      # 渐近上限（装甲 → ∞ 时逼近 75%）
+#: 旧线性口径的分母（仅用于历史对照与回归测试，不再参与结算）
+ARMOR_REDUCTION_DIVISOR = 400.0
 ARMOR_SHRED_RATIO = 0.30                        # 破甲：削蚀量 = 实际伤害 × 30%
 #: 装了【热融破拆钻】的车把破甲系数提到 45%（取较大值，不削弱没装的车）
 ARMOR_SHRED_RATIO_DRILL = 0.45
@@ -507,7 +512,8 @@ ENEMY_UNITS: dict[str, dict] = {
     "suicide_spider": {"name": "小型自爆蜘蛛", "shield": 0.0, "armor": 80.0, "hull": 130.0, "dps": 30.0, "damage_type": "EXPLOSIVE"},
     "assault_drone": {"name": "突击无人机", "shield": 120.0, "armor": 60.0, "hull": 100.0, "dps": 18.0, "damage_type": "LASER"},
     "heavy_cleaner_03": {"name": "重型清扫蜘蛛-03", "shield": 0.0, "armor": 200.0, "hull": 200.0, "dps": 22.0, "damage_type": "KINETIC"},
-    "heavy_guard_mech": {"name": "重型近卫机甲（关底）", "shield": 300.0, "armor": 500.0, "hull": 800.0, "dps": 45.0, "damage_type": "EXPLOSIVE"},
+    # 装甲 500 → 430：凸曲线下关底会相对变强，按 §9.2.1 的结论同步再校准
+    "heavy_guard_mech": {"name": "重型近卫机甲（关底）", "shield": 300.0, "armor": 430.0, "hull": 800.0, "dps": 45.0, "damage_type": "EXPLOSIVE"},
 }
 
 #: 交火节奏：每回合 1 秒，上限 120 秒（避免打不完的死循环）

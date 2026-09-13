@@ -37,11 +37,16 @@ def morale_multiplier(catnip_ratio: float) -> float:
 def armor_reduction_ratio(armor: float) -> float:
     """装甲减伤率（《数值平衡表》§9.2）。
 
-    现行口径：`min(上限, 装甲 ÷ 400)` —— **线性爬升 + 硬封顶**，封顶在装甲 300 处发生。
-    > 待定稿：改用 MOBA 式凸曲线（`reduction = max × 装甲 ÷ (装甲 + K)`）可消除"高装甲浪费"，
-    > 对比数据见 §9.2 的量化表；本函数是唯一的减伤入口，换曲线只需改这一处。
+    现行口径（v1.37 拍板）：**MOBA 式凸曲线** `减伤率 = 上限 × 装甲 ÷ (装甲 + K)`，K = 100、上限 75%。
+
+    * 没有硬封顶 —— 每一点装甲都真的降伤（旧线性口径在装甲 300 以上完全浪费）；
+    * 装甲 200 处仍是 50%（与旧口径一致，手感不断层）：`0.75 × 200 ÷ 300 = 0.5`；
+    * 装甲 500 处 62.5%（旧口径是封顶 75%），重甲敌人因此**相对变强**，已同步把关底近卫装甲
+      从 500 下调到 430（§9.5）；
+    * 本函数是唯一减伤入口，`resolve_attack` 与战力评分（`combat_power`）共用它。
     """
-    return min(B.ARMOR_REDUCTION_MAX, float(armor) / B.ARMOR_REDUCTION_DIVISOR)
+    value = max(0.0, float(armor))
+    return B.ARMOR_REDUCTION_MAX * value / (value + B.ARMOR_REDUCTION_CURVE_K)
 
 
 def resolve_attack(
