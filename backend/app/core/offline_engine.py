@@ -425,16 +425,38 @@ def calculate_offline_progress(
         report["charged_kwh"] = round(charged, RESOURCE_PRECISION)
 
     report["applied_seconds"] = round(normal_duration + starve_duration, PROGRESS_PRECISION)
+
+    # ---- 熔炼（§3.5）：电炉把废铁按 10:1 转成合金 ----
+    furnaces = _int(current_state.get("induction_furnaces", 0))
+    smelt_mult = max(0.0, _num(current_state.get("smelt_speed_multiplier"), 1.0))
+    alloys = _num(current_state.get("alloys"))
+    alloys_cap = _num(current_state.get("alloys_max"), B.RESOURCE_CAPS["alloys"])
+    if furnaces and smelt_mult > 0 and not power["blackout"]:
+        # 以"炉次"为单位结算：可炼炉次 = min(时间允许, 废铁够, 合金仓剩得下)
+        batches_by_time = furnaces * smelt_mult * elapsed / B.SMELT_BATCH_SECONDS
+        batches_by_scrap = scrap / B.SMELT_SCRAP_PER_BATCH
+        batches_by_room = max(0.0, alloys_cap - alloys) / B.SMELT_ALLOY_PER_BATCH
+        batches = max(0.0, min(batches_by_time, batches_by_scrap, batches_by_room))
+        if batches > 0:
+            gained_alloys = batches * B.SMELT_ALLOY_PER_BATCH
+            alloys = _clamp_resource(alloys + gained_alloys, alloys_cap, "alloys", report["overflowed"])
+            scrap = max(0.0, scrap - batches * B.SMELT_SCRAP_PER_BATCH)
+            report["smelted_batches"] = round(batches, 4)
+            report["gained_alloys"] = round(gained_alloys, RESOURCE_PRECISION)
+    elif furnaces and power["blackout"]:
+        report["notes"].append("净电力为负，高频感应电炉全部停炉：本段没有熔炼产出")
+
     report["gained_resources"] = {
         "catnip": round(catnip - _num(current_state.get("catnip")), RESOURCE_PRECISION),
         "scrap": round(scrap - _num(current_state.get("scrap")), RESOURCE_PRECISION),
         "chips": round(chips - _num(current_state.get("chips")), RESOURCE_PRECISION),
+        "alloys": round(alloys - _num(current_state.get("alloys")), RESOURCE_PRECISION),
     }
     report["final"] = {
         "catnip": round(catnip, RESOURCE_PRECISION),
         "scrap": round(scrap, RESOURCE_PRECISION),
         "chips": round(chips, RESOURCE_PRECISION),
-        "alloys": round(_num(current_state.get("alloys")), RESOURCE_PRECISION),
+        "alloys": round(alloys, RESOURCE_PRECISION),
         "battery": round(_num(current_state.get("battery")), RESOURCE_PRECISION),
         "lube": round(_num(current_state.get("lube")), RESOURCE_PRECISION),
         "cats_total": total_cats,
@@ -465,6 +487,9 @@ def build_report_summary(report: Mapping[str, Any]) -> dict[str, Any]:
         "overflowed_resources": list(report.get("overflowed", [])),
         "suspicion_delta": report.get("suspicion_delta", 0.0),
         "charged_kwh": report.get("charged_kwh", 0.0),
+        # 熔炼（§3.5）：炉次数与合金产出，面板与测试都靠它核对
+        "smelted_batches": report.get("smelted_batches", 0.0),
+        "gained_alloys": report.get("gained_alloys", 0.0),
         "clock_anomaly": bool(report.get("clock_anomaly", False)),
         "birth_progress": final.get("birth_progress", 0.0),
         "notes": list(report.get("notes", [])),

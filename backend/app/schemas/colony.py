@@ -105,6 +105,8 @@ class OfflineReport(BaseModel):
     overflowed_resources: list[str] = Field(default_factory=list)
     suspicion_delta: float = 0.0
     charged_kwh: float = 0.0
+    smelted_batches: float = 0.0
+    gained_alloys: float = 0.0
     clock_anomaly: bool = False
     birth_progress: float = 0.0
     notes: list[str] = Field(default_factory=list)

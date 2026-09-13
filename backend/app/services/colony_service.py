@@ -202,6 +202,20 @@ async def get_tech_effects(session: AsyncSession, slot_id: int, planet_id: int) 
     return await tech_service.unlocked_effects(session, slot_id, planet_id)
 
 
+async def get_smelt_speed_bonus(session: AsyncSession, slot_id: int) -> float:
+    """小游戏【熔炉配比】攒下的永久熔炼加成（上限 +50%，§16 口径）。"""
+    from app.models import MinigameState
+
+    rows = (
+        await session.execute(
+            select(MinigameState).where(
+                MinigameState.slot_id == slot_id, MinigameState.minigame_id == "forge_recipe"
+            )
+        )
+    ).scalars().all()
+    return max([float((row.state or {}).get("smelt_speed_bonus", 0.0)) for row in rows] or [0.0])
+
+
 # ----------------------------------------------------------------------
 # 工位上限（模块 C2 / D-2）
 # ----------------------------------------------------------------------
@@ -241,6 +255,8 @@ def build_engine_state(
     production_multiplier: float = 1.0,
     catnip_efficiency: float = 0.0,
     tech_power_kw: float = 0.0,
+    tech_effects: Mapping[str, float] | None = None,
+    minigame_smelt_bonus: float = 0.0,
 ) -> dict[str, Any]:
     """把 ORM 行摊平成离线引擎的输入（扁平字典，见 core/offline_engine 文档）。"""
     silent_grass = 0
@@ -292,6 +308,10 @@ def build_engine_state(
         "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips"),
         # 高频感应电炉座数（《数值平衡表》§3.5）：电力侧按 −10 kW/座 计，熔炼循环下一步接
         "induction_furnaces": int(facilities.get("induction_furnace", 0)),
+        # 熔炼速度加成（§3.5）：科技 smelt_speed + 小游戏配方加成，相加后统一乘在炉次速率上
+        "smelt_speed_multiplier": 1.0 + (
+            float((tech_effects or {}).get("smelt_speed", 0.0)) + float(minigame_smelt_bonus)
+        ),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
@@ -392,6 +412,7 @@ async def settle_offline(
     military = await get_military(session, save.slot_id, planet_id)
     idle_vehicles = await count_idle_vehicles(session, save.slot_id, planet_id)
     tech_effects = await get_tech_effects(session, save.slot_id, planet_id)
+    minigame_smelt_bonus = await get_smelt_speed_bonus(session, save.slot_id)
     # 蓄电池电容池 = 基础值 + 科技扩容（每次结算重算一遍，幂等、不累加）
     colony.battery_kwh_max = B.BATTERY_KWH_MAX + float(tech_effects.get("battery_kwh_max", 0.0))
     engine_state = build_engine_state(
@@ -404,6 +425,8 @@ async def settle_offline(
         idle_vehicles=idle_vehicles,
         catnip_efficiency=tech_effects.get("catnip_efficiency", 0.0),
         tech_power_kw=tech_effects.get("power_kw", 0.0),
+        tech_effects=tech_effects,
+        minigame_smelt_bonus=minigame_smelt_bonus,
     )
     delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)

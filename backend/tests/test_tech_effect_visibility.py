@@ -41,10 +41,10 @@ async def test_node_reports_active_and_pending_effects(client, session) -> None:
             )
         )
     ).scalars().one()
-    row.buff_payload = {"power_kw": 3, "smelt_speed": 1.2}
+    row.buff_payload = {"power_kw": 3, "vs_shield": 1.8}
     row.status = TechStatus.LOCKED
     await session.commit()
     data = (await client.get(TREE_URL, params={"slot": 1, "planet_id": 0})).json()["data"]
     refreshed = node(data, "tech_heavy_breaker_exoskeleton")
     assert refreshed["active_effects"] == {"power_kw": 3}
-    assert refreshed["pending_effects"] == {"smelt_speed": 1.2}
+    assert refreshed["pending_effects"] == {"vs_shield": 1.8}

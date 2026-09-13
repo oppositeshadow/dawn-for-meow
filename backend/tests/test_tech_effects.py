@@ -120,7 +120,7 @@ async def test_whitelist_settles_power_kw_but_not_other_keys(client, session) ->
     assert totals["power_kw"] == 5.0
     assert totals["catnip_efficiency"] == 0.1
     assert totals["armor_bonus"] == 0.9  # 装甲加成同样已接线（全军装甲入口）
-    assert "smelt_speed" not in totals  # 未接入的键绝不偷偷生效
+    assert "vs_shield" not in totals  # 未接入的键绝不偷偷生效（vs_shield 仍是红灯项）
 
     after = (await client.get(STATE_URL, params={"slot": 1})).json()["data"]["power"]["gen_kw"]
     assert round(after - before, 2) == 5.0  # 净电力真的多了 5 kW
