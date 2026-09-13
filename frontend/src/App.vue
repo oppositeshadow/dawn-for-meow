@@ -81,6 +81,25 @@ const coldStartSteps: Record<string, { title: string; body: string; action: stri
 
 const currentStep = computed(() => coldStartSteps[colony.coldStartPhase] ?? null)
 
+// 冷启动期的即时目标：让"点废墟"这件事有明确的进度感（每阶段只关心当前要造的东西）
+const coldStartGoal = computed(() => {
+  const scrap = Math.floor(colony.resources.scrap)
+  const goals: Record<string, { label: string; need: number }> = {
+    GATHER: { label: '瓦楞纸箱窝', need: 5 },
+    FIRST_FARM: { label: '水培农田', need: 10 },
+    AUTOMATE_SCRAP: { label: '废品解体操作台', need: 8 },
+  }
+  const goal = goals[colony.coldStartPhase]
+  if (!goal) return null
+  return {
+    label: goal.label,
+    have: scrap,
+    need: goal.need,
+    percent: Math.min(100, Math.round((scrap / goal.need) * 100)),
+    done: scrap >= goal.need,
+  }
+})
+
 // 外星球开荒引导：切到外星球后基地是空的（按 §15.3 初始资源/猫口全 0），
 // 母星那套"手点废墟"的冷启动流程在这里不适用 ⇒ 单独给一段指引。
 const isStarPlanet = computed(() => colony.planetId !== 0)
@@ -312,6 +331,21 @@ onMounted(bootstrap)
           <p v-if="colony.manualClicksLeft !== null" class="mt-2 text-[10px] text-terminal-dim">
             手点废墟剩余次数：{{ colony.manualClicksLeft }}
           </p>
+          <!-- 即时目标：把"点到什么时候是个头"讲清楚 -->
+          <div v-if="coldStartGoal" class="mt-2 space-y-1">
+            <div class="flex items-center justify-between text-[10px]">
+              <span :class="coldStartGoal.done ? 'text-terminal-accent' : 'text-terminal-dim'">
+                目标：{{ coldStartGoal.label }}（废铁 {{ coldStartGoal.have }} / {{ coldStartGoal.need }}）
+              </span>
+              <span class="text-terminal-dim">{{ coldStartGoal.percent }}%</span>
+            </div>
+            <div class="h-1 overflow-hidden rounded bg-terminal-line/50">
+              <div
+                class="h-full bg-terminal-accent"
+                :style="{ width: `${coldStartGoal.percent}%` }"
+              />
+            </div>
+          </div>
         </div>
         <div v-else class="border-b border-terminal-line px-4 py-3 text-[12px] text-terminal-dim">
           开局闭环已完成：农夫产粮、拾荒猫产铁，双手彻底解放，可以安心挂机。
