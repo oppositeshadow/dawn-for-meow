@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import balance as B
 from app.core.database import get_session
 from app.core.errors import BadRequest, NotFound
-from app.models import ColonyState, PlanetState, SaveSlot
+from app.models import PlanetState, SaveSlot
 from app.schemas.colony import ColonyStateEnvelope
 from app.services import colony_service, planet_service
 
@@ -28,8 +28,8 @@ async def get_game_load(
     planet_id: int | None = Query(default=None, ge=0, le=3, description="目标星球，缺省取存档的活跃星球"),
     session: AsyncSession = Depends(get_session),
 ) -> ColonyStateEnvelope:
-    # 读档语义的第 3 条：**不假装**——只有真正建好基地的星球才能读档。
-    # 外星球基地属于星际内容（尚未开发），当前一律如实拒绝，避免出现"读进去一片空白"的假成功。
+    # 读档语义的第 3 条：**不假装**——先把基地行建好再读档（《数值平衡表》§15.3 第①步）。
+    # 建行是幂等的：已有基地行则不动，锚点只在首次建行时写"解锁那一刻"。
     save = await session.get(SaveSlot, slot)
     if save is None:
         raise NotFound("SAVE_NOT_FOUND", f"槽位 {slot} 还没有存档")
@@ -39,11 +39,7 @@ async def get_game_load(
         raise BadRequest("BAD_REQUEST", f"未知星球 planet_id={target}")
     if not planet.unlocked:
         raise BadRequest("PLANET_LOCKED", f"【{B.PLANETS.get(target, target)}】尚未解锁")
-    if planet_id is not None and await session.get(ColonyState, (slot, target)) is None:
-        raise BadRequest(
-            "STAR_COLONY_NOT_IMPLEMENTED",
-            f"【{B.PLANETS.get(target, target)}】还没有基地（外星球经营是后续星级内容），请先读母星存档",
-        )
+    await planet_service.ensure_star_colony(session, slot, target)
 
     data = await colony_service.load_state(
         session, slot_id=slot, planet_id=planet_id, create_if_missing=False

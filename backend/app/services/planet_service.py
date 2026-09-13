@@ -12,9 +12,11 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import balance as B
+from app.core.balance import RESOURCE_CAPS
 from app.core.errors import NotFound
-from app.models import PlanetState
+from app.models import ColonyState, GardenState, MilitaryState, PlanetState
 from app.schemas.planet_agent import PlanetBiome
+from app.services.game_init_service import now_timestamp
 from app.services.llm_service import LlmScene, get_llm_service
 
 logger = logging.getLogger("dawn_meow.planet")
@@ -31,6 +33,99 @@ SYSTEM_PROMPT = (
     "再给 1~3 条 2~6 字的行星词缀（可以是气候、地貌、危险或机遇）。"
     "语气冷硬、有科幻质感，不要出现现实地名与品牌。只输出 JSON。"
 )
+
+
+async def ensure_star_colony(
+    session: AsyncSession, slot_id: int, planet_id: int, *, now: int | None = None
+) -> dict[str, Any] | None:
+    """外星球基地建行（《数值平衡表》§15.3 第①步 / 《数据库设计定稿》§2.5）。
+
+    * **幂等**：已有 `colony_state` 行则直接返回 `None`（不重置任何进度、不重设锚点）；
+    * **锚点铁律**：`last_tick_time` 写**解锁那一刻**，不能写 0——写 0 会把解锁之前的历史时间当成离线时长补算；
+    * 初始资源 / 设施 / 猫口全 0（沿用母星冷启动经验：想要资源就靠跨星航线运进来）。
+    """
+    if planet_id == B.HOME_PLANET_ID:
+        return None
+    if planet_id not in B.PLANETS:
+        raise NotFound("BAD_REQUEST", f"未知星球 planet_id={planet_id}")
+    if await session.get(ColonyState, (slot_id, planet_id)) is not None:
+        return None
+
+    from app.services import colony_service
+
+    stamped = now if now is not None else now_timestamp()
+    session.add(
+        ColonyState(
+            slot_id=slot_id,
+            planet_id=planet_id,
+            last_tick_time=stamped,
+            catnip=0.0, catnip_max=RESOURCE_CAPS["catnip"],
+            scrap=0.0, scrap_max=RESOURCE_CAPS["scrap"],
+            chips=0.0, chips_max=RESOURCE_CAPS["chips"],
+            alloys=0.0, alloys_max=RESOURCE_CAPS["alloys"],
+            battery=0.0, battery_max=RESOURCE_CAPS["battery"],
+            lube=0.0, lube_max=RESOURCE_CAPS["lube"],
+            power_net=0.0,
+            battery_kwh=0.0,
+            battery_kwh_max=B.BATTERY_KWH_MAX,
+            total_cats=0,
+            birth_progress=0.0,
+            job_idle=0,
+            suspicion=0.0,
+            labor_automation_policy=None,
+            smelt_automation_policy=None,
+        )
+    )
+    await session.flush()
+    # 工种分桶与设施行按母星同构建行（复用"加设施/加职业不用改表"的同步函数）
+    labor_rows = await colony_service.sync_labor_rows(session, slot_id, planet_id)
+    facility_rows = await colony_service.sync_facility_rows(session, slot_id, planet_id)
+    # 军备态与猫草实验舱是**按星球独立**的表：缺行会让读档/军备接口报 404（真机踩到过）
+    from app.services.game_init_service import DEFAULT_SECURITY_POLICY, build_initial_grid
+    from app.core.seed_loader import load_seed
+
+    if await session.get(MilitaryState, (slot_id, planet_id)) is None:
+        session.add(
+            MilitaryState(
+                slot_id=slot_id,
+                planet_id=planet_id,
+                last_tick_time=stamped,
+                hangar_capacity=12,
+                laser_turrets=0,
+                cruise_missiles=0,
+                decoy_count=0,
+                security_policy=dict(DEFAULT_SECURITY_POLICY),
+                hospital_queue=[],
+                active_expeditions=[],
+            )
+        )
+    if await session.get(GardenState, (slot_id, planet_id)) is None:
+        session.add(
+            GardenState(
+                slot_id=slot_id,
+                planet_id=planet_id,
+                last_tick_time=stamped,
+                grid_size=B.GARDEN_INITIAL_GRID_SIZE,
+                unlocked_cells=B.GARDEN_INITIAL_UNLOCKED_CELLS,
+                current_medium="STERILE",
+                mechanical_arm_enabled=False,
+                auto_protect_unknown=True,
+                grid_data=build_initial_grid(),
+                unlocked_seed_ids=list(load_seed("cat_plants.json").get("starter_seeds", [])),
+                codex_papers={},
+            )
+        )
+    await session.flush()
+    logger.info(
+        "外星球基地建行：slot=%s planet=%s 工种 %s 行 / 设施 %s 行 / 锚点 %s",
+        slot_id, planet_id, len(labor_rows), len(facility_rows), stamped,
+    )
+    return {
+        "planet_id": planet_id,
+        "created_at": stamped,
+        "labor_rows": len(labor_rows),
+        "facility_rows": len(facility_rows),
+    }
 
 
 async def ensure_biome(

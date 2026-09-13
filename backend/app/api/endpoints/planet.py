@@ -79,6 +79,8 @@ async def post_planet_switch(
     # LLM 场景 1：登录新行星时生成生态环境与词缀（每颗星球 1 次，失败走本地生态池）
     from app.services import planet_service
 
+    # 星球解锁后切进来：先把基地行建好（《数值平衡表》§15.3 第①步，幂等）
+    await planet_service.ensure_star_colony(session, payload.slot, payload.planet_id)
     biome = await planet_service.ensure_biome(session, payload.slot, payload.planet_id)
     await session.commit()
     return MilitaryEnvelope(
