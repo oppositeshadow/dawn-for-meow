@@ -129,6 +129,16 @@ def node_view(
 ) -> dict[str, Any]:
     parents = list(record.parent_ids or [])
     missing = [parent for parent in parents if parent not in unlocked_ids]
+    # 如实标注"哪些载荷真的接线了"：白名单里的键计入结算，其余只是卡片命题（《数值平衡表》§6.4 三类载荷）
+    payload = record.buff_payload or {}
+    active_effects = {key: value for key, value in payload.items() if key in B.TECH_ACTIVE_EFFECT_KEYS}
+    pending_effects = {
+        key: value
+        for key, value in payload.items()
+        if key not in B.TECH_ACTIVE_EFFECT_KEYS
+        and isinstance(value, (int, float))
+        and not isinstance(value, bool)
+    }
     return {
         "tech_id": record.tech_id,
         "tech_name": record.tech_name,
@@ -144,6 +154,8 @@ def node_view(
         "flavor_text": record.flavor_text,
         "mechanic_type": record.mechanic_type,
         "buff_payload": record.buff_payload,
+        "active_effects": active_effects,
+        "pending_effects": pending_effects,
         "is_agent_generated": bool(record.is_agent_generated),
         "available": bool(
             record.status == TechStatus.LOCKED

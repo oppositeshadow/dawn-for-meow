@@ -34,6 +34,8 @@ class TechNode(BaseModel):
     flavor_text: str | None = None
     mechanic_type: str | None = None
     buff_payload: dict[str, Any] | None = None
+    active_effects: dict[str, Any] = Field(default_factory=dict)
+    pending_effects: dict[str, Any] = Field(default_factory=dict)
     is_agent_generated: bool = False
     available: bool = False
 
