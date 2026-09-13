@@ -18,6 +18,28 @@ const TIER_NAMES: Record<number, string> = {
 onMounted(() => tech.startPolling(5000))
 onUnmounted(() => tech.stopPolling())
 
+// 效果人话化（《数值平衡表》§6.4）：百分比类键加成数、其余直接报数值
+const PERCENT_KEYS = new Set([
+  'catnip_efficiency',
+  'fleet_armor',
+  'armor_bonus',
+  'dps_bonus',
+  'smelt_speed',
+  'smelt_yield',
+  'vs_shield',
+])
+
+function effectText(effects: Record<string, number | string | boolean>): string {
+  return Object.entries(effects)
+    .map(([key, value]) => {
+      if (typeof value === 'number') {
+        return PERCENT_KEYS.has(key) ? `${key} +${Math.round(value * 100)}%` : `${key} ${value}`
+      }
+      return `${key} ${String(value)}`
+    })
+    .join('、')
+}
+
 const tiers = computed(() =>
   Object.keys(tech.nodesByTier)
     .map(Number)
@@ -101,6 +123,12 @@ function statusText(node: TechNodeView): string {
             </button>
           </div>
           <p v-if="node.flavor_text" class="mt-1 text-[10px] text-terminal-dim">{{ node.flavor_text }}</p>
+          <p v-if="Object.keys(node.active_effects).length" class="mt-0.5 text-[10px] text-terminal-accent">
+            生效中：{{ effectText(node.active_effects) }}
+          </p>
+          <p v-if="Object.keys(node.pending_effects).length" class="mt-0.5 text-[10px] text-terminal-dim">
+            卡面机制（待接线）：{{ effectText(node.pending_effects) }}
+          </p>
         </div>
       </div>
     </div>

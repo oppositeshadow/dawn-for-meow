@@ -19,6 +19,10 @@ export interface TechNodeView {
   discount: number
   flavor_text: string | null
   mechanic_type: string | null
+  /** 白名单内、真的在结算的效果（《数值平衡表》§6.4） */
+  active_effects: Record<string, number | string | boolean>
+  /** 数字型但尚未接线的效果（接口如实标注，不假装生效） */
+  pending_effects: Record<string, number>
   is_agent_generated: boolean
   available: boolean
 }
