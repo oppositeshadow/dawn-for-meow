@@ -157,6 +157,12 @@ def mid_stage() -> None:
     3. 太阳能板被 T1【瓦楞纸结构力学】门槛挡住 ⇒ 早期只能走**猫力滚轮 + 踩轮猫**（开荒豁免名单内，+5 kW/座）；
     4. 5 kW < 6 kW ⇒ 需要**两座滚轮**（或一座滚轮 + 科研完的太阳能板）；
     5. 踩轮猫会占掉空闲猫口 ⇒ 派极客猫之前要再扩一次窝。
+
+    **当前状态（2026-09-13）**：依赖链已全部走通（滚轮×2 → 扩窝 → 踩轮猫×2 → 净电力 10 kW →
+    图灵终端 → 扩窝 → 极客猫 → T1 前两个节点解锁）。**遗留疑点**：脚本里连续研发多个节点时，
+    第 3 个节点报 `RESEARCH_IN_PROGRESS`（上一个节点看似未在 3600 秒的"时间旅行"里完成）——
+    需要确认是"脚本节奏问题"还是"研发注入只在特定路径发生"（真机手玩没遇到，因为间隔更长）。
+    下一次会话请先查这一点，再往下走熔炼。
     """
     print("\n== 中期演练：科研 → 冶炼 ==")
     # 图灵终端要芯片，而拾荒猫产芯片只有 0.01/s ⇒ 先挂机攒一会儿（这是设计内的资源门槛）
@@ -165,8 +171,22 @@ def mid_stage() -> None:
     # 所以早期只能走【猫力滚轮 + 踩轮猫】（开荒豁免，+5 kW/座，两座才够抵消终端 −6 kW）
     step("造猫力滚轮 ×2", call("POST", "/facilities/build",
                            body={"slot": SLOT, "facility_id": "power_wheel", "count": 2}))
+    # 两只猫都在岗（农夫 + 拾荒）⇒ 想派踩轮猫必须先扩窝、等第 3 只猫
+    step("扩第三座纸箱窝", call("POST", "/facilities/build",
+                            body={"slot": SLOT, "facility_id": "housing_box"}))
+    travel(900)
+    state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
+    print(f"   扩窝后猫口 {state['population']['total']}（K={state['population']['max_cap']}）")
     step("派 1 只踩轮猫供电", call("POST", "/colony/dispatch",
                             body={"slot": SLOT, "job_id": "power_runner", "delta": 1}))
+    # 1 只踩轮猫只有 +5 kW，抵不过图灵终端的 −6 kW（§7.1）⇒ 还得第二只
+    step("扩第四座纸箱窝", call("POST", "/facilities/build",
+                            body={"slot": SLOT, "facility_id": "housing_box"}))
+    travel(900)
+    step("派第 2 只踩轮猫", call("POST", "/colony/dispatch",
+                            body={"slot": SLOT, "job_id": "power_runner", "delta": 1}))
+    state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
+    print(f"   净电力 {state['power']['net_kw']} kW（应 ≥ 0，否则图灵终端会断电、科研归 0）")
     step("造图灵终端机房", call("POST", "/facilities/build",
                             body={"slot": SLOT, "facility_id": "turing_terminal"}))
     step("派 2 只极客猫", call("POST", "/colony/dispatch",
