@@ -3,8 +3,13 @@
   "source": "挂机游戏详细设计与开发需求文档.md §4.1（19 节点）/ 数值平衡表.md §6.1（成本阶梯）",
   "note": "母星手工编排 DAG 科技树。初始化时按 LOCKED 写入 tech_records；parent_ids 用于防火墙 2 的前置校验。",
   "planet_id": 0,
-  "total_research": 213280,
-  "tiers": { "1": 4, "2": 4, "3": 5, "4": 6 },
+  "total_research": 95100,
+  "tiers": {
+    "1": 4,
+    "2": 4,
+    "3": 5,
+    "4": 6
+  },
   "techs": [
     {
       "tech_id": "tech_cardboard_mechanics",
@@ -12,10 +17,16 @@
       "tier": 1,
       "node_order": 1,
       "parent_ids": [],
-      "target_cost": 30,
+      "target_cost": 300,
       "mechanic_type": "PASSIVE_BUFF",
       "flavor_text": "把纸箱折成能扛住落石的形状，是文明的第一步。",
-      "buff_payload": { "unlock_facility": ["housing_box", "cat_condo"], "acoustic": "basic" }
+      "buff_payload": {
+        "unlock_facility": [
+          "housing_box",
+          "cat_condo"
+        ],
+        "acoustic": "basic"
+      }
     },
     {
       "tech_id": "tech_hydroponics_basics",
@@ -23,10 +34,16 @@
       "tier": 1,
       "node_order": 2,
       "parent_ids": [],
-      "target_cost": 50,
+      "target_cost": 600,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "冷凝水和猫草种子，就是全星系数一数二的粮仓。",
-      "buff_payload": { "unlock_facility": ["farm_plot", "power_wheel"], "catnip_efficiency": 0.2 }
+      "buff_payload": {
+        "unlock_facility": [
+          "farm_plot",
+          "power_wheel"
+        ],
+        "catnip_efficiency": 0.2
+      }
     },
     {
       "tech_id": "tech_appliance_teardown",
@@ -34,175 +51,270 @@
       "tier": 1,
       "node_order": 3,
       "parent_ids": [],
-      "target_cost": 80,
+      "target_cost": 1100,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "微波炉是废铁，电脑主板是芯片，人类的垃圾是猫的宝藏。",
-      "buff_payload": { "unlock_facility": ["scavenge_station"], "chip_drop": true }
+      "buff_payload": {
+        "unlock_facility": [
+          "scavenge_station"
+        ],
+        "chip_drop": true
+      }
     },
     {
       "tech_id": "tech_night_stealth_scavenging",
       "tech_name": "黑夜潜行拾荒规约",
       "tier": 1,
       "node_order": 4,
-      "parent_ids": ["tech_appliance_teardown"],
-      "target_cost": 120,
+      "parent_ids": [
+        "tech_appliance_teardown"
+      ],
+      "target_cost": 1600,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "夜里翻废墟，脚步声要轻得像猫。",
-      "buff_payload": { "unlock_system": "FOOT_EXPEDITION", "suspicion_cost": "low" }
+      "buff_payload": {
+        "unlock_system": "FOOT_EXPEDITION",
+        "suspicion_cost": "low"
+      }
     },
     {
       "tech_id": "tech_acoustic_layer",
       "tech_name": "多孔纸浆隔音降噪层",
       "tier": 2,
       "node_order": 1,
-      "parent_ids": ["tech_cardboard_mechanics"],
-      "target_cost": 200,
+      "parent_ids": [
+        "tech_cardboard_mechanics"
+      ],
+      "target_cost": 1200,
       "mechanic_type": "PASSIVE_BUFF",
       "flavor_text": "机器轰鸣被纸浆吃掉了三成。",
-      "buff_payload": { "unlock_facility": ["acoustic_layer"], "noise_reduction": 0.3, "unlock_item": "decoy_mouse" }
+      "buff_payload": {
+        "unlock_facility": [
+          "acoustic_layer"
+        ],
+        "noise_reduction": 0.3,
+        "unlock_item": "decoy_mouse"
+      }
     },
     {
       "tech_id": "tech_induction_furnace",
       "tech_name": "高频感应电炉",
       "tier": 2,
       "node_order": 2,
-      "parent_ids": ["tech_appliance_teardown"],
-      "target_cost": 300,
+      "parent_ids": [
+        "tech_appliance_teardown"
+      ],
+      "target_cost": 1900,
       "mechanic_type": "CONVERSION",
       "flavor_text": "废铁进去，钛合金出来。",
-      "buff_payload": { "unlock_refine": "alloys", "auto_smelt_policy": true }
+      "buff_payload": {
+        "unlock_refine": "alloys",
+        "auto_smelt_policy": true
+      }
     },
     {
       "tech_id": "tech_turing_terminal",
       "tech_name": "人类古董图灵终端破译",
       "tier": 2,
       "node_order": 3,
-      "parent_ids": ["tech_appliance_teardown"],
-      "target_cost": 400,
+      "parent_ids": [
+        "tech_appliance_teardown"
+      ],
+      "target_cost": 2600,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "爪子在老键盘上敲出了第一串算力。",
-      "buff_payload": { "unlock_facility": ["turing_terminal"], "unlock_job": "geek" }
+      "buff_payload": {
+        "unlock_facility": [
+          "turing_terminal"
+        ],
+        "unlock_job": "geek"
+      }
     },
     {
       "tech_id": "tech_greenhouse_loop",
       "tech_name": "温室环境微调回路",
       "tier": 2,
       "node_order": 4,
-      "parent_ids": ["tech_hydroponics_basics"],
-      "target_cost": 600,
+      "parent_ids": [
+        "tech_hydroponics_basics"
+      ],
+      "target_cost": 3300,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "把温室调成猫最想赖着的温度。",
-      "buff_payload": { "unlock_facility": ["refinery"], "unlock_system": "GARDEN_LAB" }
+      "buff_payload": {
+        "unlock_facility": [
+          "refinery"
+        ],
+        "unlock_system": "GARDEN_LAB"
+      }
     },
     {
       "tech_id": "tech_meow_ai_labor",
       "tech_name": "喵工智能：劳动力调度协议",
       "tier": 3,
       "node_order": 1,
-      "parent_ids": ["tech_turing_terminal"],
-      "target_cost": 1000,
+      "parent_ids": [
+        "tech_turing_terminal"
+      ],
+      "target_cost": 3000,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "猫口自动换班，防抖动，防溢出。",
-      "buff_payload": { "unlock_system": "HYSTERESIS_AUTOMATION" }
+      "buff_payload": {
+        "unlock_system": "HYSTERESIS_AUTOMATION"
+      }
     },
     {
       "tech_id": "tech_shortwave_radio",
       "tech_name": "暗区短波穿透电台",
       "tier": 3,
       "node_order": 2,
-      "parent_ids": ["tech_turing_terminal"],
-      "target_cost": 1500,
+      "parent_ids": [
+        "tech_turing_terminal"
+      ],
+      "target_cost": 4000,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "穿透地表，接入机器人的匿名深网。",
-      "buff_payload": { "unlock_system": "DARKNET" }
+      "buff_payload": {
+        "unlock_system": "DARKNET"
+      }
     },
     {
       "tech_id": "tech_armored_car_chassis",
       "tech_name": "全地形装甲猫车底盘（自带弹射免死协议）",
       "tier": 3,
       "node_order": 3,
-      "parent_ids": ["tech_induction_furnace"],
-      "target_cost": 2000,
+      "parent_ids": [
+        "tech_induction_furnace"
+      ],
+      "target_cost": 4500,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "出厂标配紧急弹射逃生舱——绝无死猫。",
-      "buff_payload": { "unlock_system": "COMBAT_HANGAR", "unlock_unit": "light_car" }
+      "buff_payload": {
+        "unlock_system": "COMBAT_HANGAR",
+        "unlock_unit": "light_car"
+      }
     },
     {
       "tech_id": "tech_battery_matrix",
       "tech_name": "高能蓄能矩阵电池",
       "tier": 3,
       "node_order": 4,
-      "parent_ids": ["tech_induction_furnace"],
-      "target_cost": 3000,
+      "parent_ids": [
+        "tech_induction_furnace"
+      ],
+      "target_cost": 5000,
       "mechanic_type": "PASSIVE_BUFF",
       "flavor_text": "断电时的一口底气。",
-      "buff_payload": { "unlock_facility": ["battery_bank"], "battery_kwh_max": 200 }
+      "buff_payload": {
+        "unlock_facility": [
+          "battery_bank"
+        ],
+        "battery_kwh_max": 200
+      }
     },
     {
       "tech_id": "tech_laser_firecontrol",
       "tech_name": "高能聚焦激光/破拆火控",
       "tier": 3,
       "node_order": 5,
-      "parent_ids": ["tech_armored_car_chassis"],
-      "target_cost": 4000,
+      "parent_ids": [
+        "tech_armored_car_chassis"
+      ],
+      "target_cost": 6000,
       "mechanic_type": "PASSIVE_BUFF",
       "flavor_text": "激光专治护盾，破拆专治重甲。",
-      "buff_payload": { "module": "laser_mk2", "vs_shield": 1.8 }
+      "buff_payload": {
+        "module": "laser_mk2",
+        "vs_shield": 1.8
+      }
     },
     {
       "tech_id": "tech_heavy_breaker_exoskeleton",
       "tech_name": "重型破拆外骨骼装甲",
       "tier": 4,
       "node_order": 1,
-      "parent_ids": ["tech_armored_car_chassis", "tech_acoustic_layer"],
-      "target_cost": 8000,
+      "parent_ids": [
+        "tech_armored_car_chassis",
+        "tech_acoustic_layer"
+      ],
+      "target_cost": 6000,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "猫在里面，推土机在外面。",
-      "buff_payload": { "unlock_unit": "breaker_mech", "fleet_armor": 0.2 }
+      "buff_payload": {
+        "unlock_unit": "breaker_mech",
+        "fleet_armor": 0.2
+      }
     },
     {
       "tech_id": "tech_security_command_center",
       "tech_name": "中央安防应急预案司令部",
       "tier": 4,
       "node_order": 2,
-      "parent_ids": ["tech_meow_ai_labor", "tech_acoustic_layer"],
-      "target_cost": 12000,
+      "parent_ids": [
+        "tech_meow_ai_labor",
+        "tech_acoustic_layer"
+      ],
+      "target_cost": 8000,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "诱饵 → 战车 → 关灯静默，挂机安心睡觉。",
-      "buff_payload": { "unlock_system": "SECURITY_AUTOMATION" }
+      "buff_payload": {
+        "unlock_system": "SECURITY_AUTOMATION"
+      }
     },
     {
       "tech_id": "tech_cruise_missile_launcher",
       "tech_name": "地对地战略巡航导弹发射架",
       "tier": 4,
       "node_order": 3,
-      "parent_ids": ["tech_induction_furnace", "tech_security_command_center"],
-      "target_cost": 20000,
+      "parent_ids": [
+        "tech_induction_furnace",
+        "tech_security_command_center"
+      ],
+      "target_cost": 9500,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "一发入魂，炸掉除菌要塞的能量穹顶。",
-      "buff_payload": { "unlock_system": "CRUISE_MISSILE" }
+      "buff_payload": {
+        "unlock_system": "CRUISE_MISSILE"
+      }
     },
     {
       "tech_id": "tech_launch_silo_engineering",
       "tech_name": "火箭垂直发射井土木工程",
       "tier": 4,
       "node_order": 4,
-      "parent_ids": ["tech_induction_furnace", "tech_battery_matrix"],
-      "target_cost": 30000,
+      "parent_ids": [
+        "tech_induction_furnace",
+        "tech_battery_matrix"
+      ],
+      "target_cost": 11000,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "竖坑清理、导轨浇筑——从地基开始造一枚火箭。",
-      "buff_payload": { "unlock_facility": ["launch_silo"], "stages": [1, 2] }
+      "buff_payload": {
+        "unlock_facility": [
+          "launch_silo"
+        ],
+        "stages": [
+          1,
+          2
+        ]
+      }
     },
     {
       "tech_id": "tech_liquid_hydrogen_propellant",
       "tech_name": "高效液氢与复合推进剂合成",
       "tier": 4,
       "node_order": 5,
-      "parent_ids": ["tech_greenhouse_loop", "tech_battery_matrix"],
-      "target_cost": 50000,
+      "parent_ids": [
+        "tech_greenhouse_loop",
+        "tech_battery_matrix"
+      ],
+      "target_cost": 12500,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "把冷凝水变成冲出大气的推力。",
-      "buff_payload": { "silo_stage": 3, "garden_medium": "RADIATION" }
+      "buff_payload": {
+        "silo_stage": 3,
+        "garden_medium": "RADIATION"
+      }
     },
     {
       "tech_id": "tech_orbit_navigation_hub",
@@ -215,10 +327,13 @@
         "tech_launch_silo_engineering",
         "tech_cruise_missile_launcher"
       ],
-      "target_cost": 80000,
+      "target_cost": 13000,
       "mechanic_type": "UNLOCK_ABILITY",
       "flavor_text": "喵星一号点火就绪，破晓跨入第二章。",
-      "buff_payload": { "unlock_system": "STAR_CHART", "silo_stage": 4 }
+      "buff_payload": {
+        "unlock_system": "STAR_CHART",
+        "silo_stage": 4
+      }
     }
   ],
   "fallback_techs_file": "fallback_techs.json"

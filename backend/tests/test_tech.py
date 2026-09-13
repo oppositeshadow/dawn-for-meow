@@ -53,9 +53,11 @@ class TestTechTree:
     async def test_nodes_carry_discount_by_tier(self, client):
         await _bootstrap(client)
         nodes = {n["tech_id"]: n for n in (await client.get(f"{TECH_URL}/tree")).json()["data"]["nodes"]}
-        assert nodes["tech_cardboard_mechanics"]["display_cost"] == 30  # Tier 1 无折扣
-        assert nodes["tech_acoustic_layer"]["display_cost"] == 160       # 200 × 0.8
-        assert nodes["tech_meow_ai_labor"]["display_cost"] == 600        # 1000 × 0.6
+        # 折扣按阶梯走，具体值从种子读取，避免每次调曲线都要改测试
+        first_cost = nodes["tech_cardboard_mechanics"]["target_cost"]
+        assert nodes["tech_cardboard_mechanics"]["display_cost"] == first_cost  # Tier 1 无折扣
+        assert nodes["tech_acoustic_layer"]["display_cost"] == nodes["tech_acoustic_layer"]["target_cost"] * 0.8
+        assert nodes["tech_meow_ai_labor"]["display_cost"] == nodes["tech_meow_ai_labor"]["target_cost"] * 0.6
 
 
 class TestResearch:
@@ -65,14 +67,15 @@ class TestResearch:
 
         tree = (await client.get(f"{TECH_URL}/tree")).json()["data"]
         assert tree["researching"]["tech_id"] == "tech_cardboard_mechanics"
-        assert tree["researching"]["display_cost"] == 30
+        first_cost = tree["researching"]["display_cost"]
+        assert first_cost > 0
 
         # 给 1 只极客猫（工位靠图灵终端，这里直接放行数据以聚焦研发逻辑）
         await session.rollback()
         bucket = await session.get(LaborBucket, (1, 0, "geek"))
         bucket.cat_count = 1
         await session.commit()
-        await _rewind(session, 40)  # 1.0/s × 40s = 40 算力 > 30
+        await _rewind(session, int(first_cost) + 5)  # 1.0/s ⇒ 秒数 = 算力需求 + 余量
         await client.get("/api/v1/colony/state")
 
         tree = (await client.get(f"{TECH_URL}/tree")).json()["data"]
@@ -116,7 +119,7 @@ class TestResearch:
         assert tree["research_tier_level"] == 2  # Tier 1 全解锁 ⇒ 科研等级 2
         tier2 = next(n for n in tree["nodes"] if n["tech_id"] == "tech_acoustic_layer")
         assert tier2["available"] is True
-        assert tier2["display_cost"] == 160  # 8 折
+        assert tier2["display_cost"] == tier2["target_cost"] * 0.8  # 8 折
 
 
 class TestReroll:
@@ -131,12 +134,13 @@ class TestReroll:
         await session.rollback()
         record = await session.get(TechRecord, (1, 0, "tech_acoustic_layer"))
         record.is_agent_generated = True
-        record.current_progress = 90.0
+        cost = max(B.TECH_REROLL_MIN_COST, float(record.target_cost) * B.TECH_REROLL_COST_RATIO)
+        record.current_progress = cost + 40.0
         await session.commit()
 
         body = (await client.post(f"{TECH_URL}/reroll", json={"tech_id": "tech_acoustic_layer"})).json()
         assert body["code"] == 200
-        assert body["data"]["cost"] == 50.0  # max(50, 200×5%)
+        assert body["data"]["cost"] == cost
         assert body["data"]["remaining_progress"] == 40.0
 
     async def test_reroll_requires_progress(self, client, session):
