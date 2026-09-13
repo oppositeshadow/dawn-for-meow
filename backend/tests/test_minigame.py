@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.core import balance as B
 from app.core.minigame_engine import (
     code_length,
     daily_seed,
+    evaluate_mix,
     evaluate_guess,
+    forge_spec,
+    generate_forge_recipe,
     generate_secret,
+    generate_vein_board,
     render_symbols,
     symbol_count,
+    vein_hint,
+    vein_spec,
 )
-from app.models import BossState, MinigameState, PlanetState
+from app.models import BossState, ColonyState, MinigameState, PlanetState
 from app.services import planet_service
 
 MINIGAME_URL = "/api/v1/minigame"
@@ -136,16 +144,16 @@ class TestCipherApi:
         assert bad.status_code == 400
         assert bad.json()["message"] == "BAD_REQUEST"
 
-    async def test_unimplemented_minigame_is_honest(self, client, session):
-        """矿脉扫描还没做：如实返回 NOT_IMPLEMENTED，而不是假装能玩。"""
+    async def test_unknown_action_is_rejected(self, client, session):
+        """三个小游戏都已落地；不认识的动作如实报错，而不是假装执行。"""
         await _bootstrap(client)
-        await _unlock_planet(session, 3)
+        await _unlock_planet(session, 2)
         response = await client.post(
             f"{MINIGAME_URL}/action",
-            json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {}},
+            json={"minigame_id": "cipher_decode", "action": "SELF_DESTRUCT", "payload": {}},
         )
         assert response.status_code == 400
-        assert response.json()["message"] == "NOT_IMPLEMENTED"
+        assert response.json()["message"] == "BAD_REQUEST"
 
     async def test_unknown_minigame_rejected(self, client):
         await _bootstrap(client)
@@ -153,6 +161,190 @@ class TestCipherApi:
             f"{MINIGAME_URL}/action", json={"minigame_id": "moon_race", "action": "GO", "payload": {}}
         )
         assert response.status_code == 400
+
+
+class TestVeinEngine:
+    def test_board_is_deterministic_with_exact_vein_count(self):
+        first = generate_vein_board("1:3:0")
+        second = generate_vein_board("1:3:0")
+        assert first == second
+        assert len(first) == len(first[0]) == vein_spec()["grid_size"] == 8
+        assert sum(1 for row in first for cell in row if cell) == vein_spec()["vein_count"] == 12
+
+    def test_hint_counts_eight_neighbors(self):
+        board = [[False] * 8 for _ in range(8)]
+        board[0][1] = True
+        board[1][0] = True
+        board[1][1] = True
+        assert vein_hint(board, 0, 0) == 3
+        assert vein_hint(board, 5, 5) == 0
+
+
+class TestForgeEngine:
+    def test_recipe_is_a_deterministic_ratio(self):
+        first = generate_forge_recipe("1:1:0")
+        assert first == generate_forge_recipe("1:1:0")
+        assert sum(first) == 100
+        assert all(0 <= value <= 100 for value in first)
+
+    def test_feedback_only_gives_direction(self):
+        recipe = [50, 30, 20]
+        assert evaluate_mix(recipe, [50, 30, 20])["result"] == "HIT"
+        assert evaluate_mix(recipe, [52, 32, 22])["result"] == "HIT"  # 容差内
+        assert evaluate_mix(recipe, [90, 90, 90])["result"] == "TOO_HOT"
+        assert evaluate_mix(recipe, [10, 10, 10])["result"] == "TOO_COLD"
+        off = evaluate_mix(recipe, [80, 10, 10])
+        assert off["result"] == "RATIO_OFF"
+        assert "偏多" in off["hint"]
+        assert off["worst_slot"] == 0
+
+
+class TestVeinApi:
+    async def test_scan_requires_unlocked_planet(self, client):
+        await _bootstrap(client)
+        response = await client.post(
+            f"{MINIGAME_URL}/action",
+            json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": 0, "y": 0}},
+        )
+        assert response.status_code == 400
+        assert response.json()["message"] == "PLANET_LOCKED"
+
+    async def test_scan_reveals_hint_and_consumes_quota(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 3)
+        board = generate_vein_board("1:3:0")
+        empty = next((x, y) for y in range(8) for x in range(8) if not board[y][x])
+        data = (
+            await client.post(
+                f"{MINIGAME_URL}/action",
+                json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": empty[0], "y": empty[1]}},
+            )
+        ).json()["data"]
+        assert data["is_vein"] is False
+        assert data["hint"] == vein_hint(board, empty[0], empty[1])
+        assert data["quota"] == vein_spec()["quota_max"] - 1
+        assert data["gained"] == {}
+
+    async def test_hitting_a_vein_pays_out(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 3)
+        await session.rollback()
+        colony = await session.get(ColonyState, (1, 0))
+        colony.alloys, colony.battery = 0.0, 0.0
+        await session.commit()
+        board = generate_vein_board("1:3:0")
+        vein = next((x, y) for y in range(8) for x in range(8) if board[y][x])
+        data = (
+            await client.post(
+                f"{MINIGAME_URL}/action",
+                json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": vein[0], "y": vein[1]}},
+            )
+        ).json()["data"]
+        assert data["is_vein"] is True
+        assert data["hint"] == 0
+        assert data["gained"]["alloys"] == 2.0
+        assert data["gained"]["battery"] == 1.0
+        assert data["found_count"] == 1
+
+    async def test_repeat_scan_and_quota_exhaustion(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 3)
+        payload = {"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": 0, "y": 0}}
+        await client.post(f"{MINIGAME_URL}/action", json=payload)
+        again = await client.post(f"{MINIGAME_URL}/action", json=payload)
+        assert again.status_code == 400
+        assert again.json()["message"] == "ALREADY_SCANNED"
+
+        # 把配额耗光（8×8 上换格子扫）
+        for x, y in [(1, 0), (2, 0), (3, 0), (4, 0)]:
+            await client.post(
+                f"{MINIGAME_URL}/action",
+                json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": x, "y": y}},
+            )
+        exhausted = await client.post(
+            f"{MINIGAME_URL}/action",
+            json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": 5, "y": 0}},
+        )
+        assert exhausted.status_code == 400
+        assert exhausted.json()["message"] == "QUOTA_EXHAUSTED"
+
+    async def test_invalid_coordinates_rejected(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 3)
+        bad = await client.post(
+            f"{MINIGAME_URL}/action",
+            json={"minigame_id": "vein_scan", "action": "SCAN", "payload": {"x": 9, "y": 0}},
+        )
+        assert bad.status_code == 400
+        assert bad.json()["message"] == "BAD_REQUEST"
+
+
+class TestForgeApi:
+    async def test_submit_mix_costs_scrap(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 1)
+        await session.rollback()
+        colony = await session.get(ColonyState, (1, 0))
+        colony.scrap = 100.0
+        await session.commit()
+        data = (
+            await client.post(
+                f"{MINIGAME_URL}/action",
+                json={"minigame_id": "forge_recipe", "action": "SUBMIT_MIX", "payload": {"mix": [50, 30, 20]}},
+            )
+        ).json()["data"]
+        assert data["feedback"]["result"] in ("HIT", "RATIO_OFF", "TOO_HOT", "TOO_COLD")
+        assert data["scrap_left"] == pytest.approx(80.0)
+
+    async def test_insufficient_scrap_rejected(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 1)
+        await session.rollback()
+        colony = await session.get(ColonyState, (1, 0))
+        colony.scrap = 5.0
+        await session.commit()
+        response = await client.post(
+            f"{MINIGAME_URL}/action",
+            json={"minigame_id": "forge_recipe", "action": "SUBMIT_MIX", "payload": {"mix": [50, 30, 20]}},
+        )
+        assert response.status_code == 400
+        assert response.json()["message"] == "INSUFFICIENT_RESOURCE"
+
+    async def test_hitting_the_recipe_grants_permanent_bonus_and_caps(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 1)
+        await session.rollback()
+        colony = await session.get(ColonyState, (1, 0))
+        colony.scrap_max, colony.scrap = 2000.0, 2000.0
+        await session.commit()
+
+        found = 0
+        for index in range(11):  # 故意多打一次，验证上限封顶
+            recipe = generate_forge_recipe(f"1:1:{index}")
+            data = (
+                await client.post(
+                    f"{MINIGAME_URL}/action",
+                    json={
+                        "minigame_id": "forge_recipe",
+                        "action": "SUBMIT_MIX",
+                        "payload": {"mix": recipe},
+                    },
+                )
+            ).json()["data"]
+            assert data["feedback"]["result"] == "HIT"
+            found = data["recipes_found"]
+        cap = forge_spec()["recipe_cap"]
+        assert found == cap == 10
+        assert data["smelt_speed_bonus"] == pytest.approx(forge_spec()["recipe_bonus_cap"])
+
+    async def test_invalid_mix_rejected(self, client, session):
+        await _bootstrap(client)
+        await _unlock_planet(session, 1)
+        bad = await client.post(
+            f"{MINIGAME_URL}/action",
+            json={"minigame_id": "forge_recipe", "action": "SUBMIT_MIX", "payload": {"mix": [50, 30]}},
+        )
+        assert bad.status_code == 400
 
 
 class TestPlanetBiome:

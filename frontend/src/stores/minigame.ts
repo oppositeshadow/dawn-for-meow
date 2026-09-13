@@ -30,6 +30,23 @@ export interface MinigameEntry {
     code_length: number
     symbol_count: number
     best_attempts: number
+    // 矿脉扫描
+    quota?: number
+    quota_max?: number
+    regen_seconds?: number
+    next_regen_in?: number
+    board_size?: number
+    vein_count?: number
+    found_count?: number
+    board_index?: number
+    revealed?: Array<{ x: number; y: number; hint: number }>
+    // 熔炉配比
+    recipes_found?: number
+    recipe_cap?: number
+    smelt_speed_bonus?: number
+    attempts?: number
+    scrap_cost?: number
+    last_feedback?: { result: string; hint: string } | null
   }
 }
 
@@ -98,6 +115,45 @@ export const useMinigameStore = defineStore('minigame', () => {
     }
   }
 
+  async function send(data: Record<string, unknown>, log: (payload: any) => string | null, fallback: string) {
+    busy.value = true
+    try {
+      const payload = await request<{ data: Record<string, any> }>('/minigame/action', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, ...data }),
+      })
+      const line = log(payload.data) ?? fallback
+      colony.log(line, payload.data.solved === false ? 'warn' : 'info')
+      await refresh()
+      return payload.data
+    } catch (error) {
+      colony.log(`${fallback}失败：${error instanceof Error ? error.message : String(error)}`, 'crit')
+      return null
+    } finally {
+      busy.value = false
+    }
+  }
+
+  const scanVein = (x: number, y: number) =>
+    send(
+      { minigame_id: 'vein_scan', action: 'SCAN', payload: { x, y } },
+      (data) =>
+        data.is_vein
+          ? `矿脉扫描 (${x},${y})：命中！合金 +${data.gained.alloys}、电池 +${data.gained.battery}（剩余配额 ${data.quota}）`
+          : `矿脉扫描 (${x},${y})：周边矿脉 ${data.hint} 处（剩余配额 ${data.quota}）`,
+      '矿脉扫描',
+    )
+
+  const submitMix = (mix: number[]) =>
+    send(
+      { minigame_id: 'forge_recipe', action: 'SUBMIT_MIX', payload: { mix } },
+      (data) =>
+        data.reward
+          ? `熔炉配比命中：${data.reward.message}`
+          : `熔炉配比：${data.feedback.hint}（已消耗 ${data.scrap_cost ?? 20} 废铁）`,
+      '熔炉配比',
+    )
+
   function startPolling(intervalMs = 15000) {
     if (timer !== null) return
     void refresh()
@@ -109,5 +165,5 @@ export const useMinigameStore = defineStore('minigame', () => {
     timer = null
   }
 
-  return { view, busy, refresh, submitGuess, startPolling, stopPolling }
+  return { view, busy, refresh, submitGuess, scanVein, submitMix, startPolling, stopPolling }
 })
