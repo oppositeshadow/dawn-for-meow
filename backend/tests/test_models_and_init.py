@@ -132,7 +132,7 @@ class TestNewGameInit:
             await session.execute(select(FacilityState).where(FacilityState.slot_id == 1))
         ).scalars().all()
         assert {f.facility_id for f in facilities} == set(B.FACILITY_IDS)
-        assert len(facilities) == len(facility_defs()) == 12
+        assert len(facilities) == len(facility_defs()) == 15
         assert all(f.level == 0 for f in facilities)
 
     async def test_planet_state_home_unlocked_others_locked(self, session):

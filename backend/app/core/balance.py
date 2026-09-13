@@ -226,6 +226,28 @@ FACILITY_SPECS: dict[str, dict] = {
         "max_level": 1,
         "effects": {"battery_kwh_max": BATTERY_KWH_MAX},
     },
+    # ---- 外星球专属设施（§15.4）：只有对应星球能建，效果分批接线 ----
+    "geothermal_forge": {
+        "name": "地热熔炉",
+        "cost": {"scrap": 200.0, "alloys": 40.0},
+        "growth": 1.45,
+        "max_level": 3,
+        "effects": {"smelt_speed_bonus": 0.30},
+    },
+    "cryo_salvage_bench": {
+        "name": "低温拆解台",
+        "cost": {"scrap": 150.0, "chips": 30.0},
+        "growth": 1.40,
+        "max_level": 3,
+        "effects": {"planet_output_bonus": "chips", "output_bonus": 0.30},
+    },
+    "asteroid_sorter": {
+        "name": "碎石分选线",
+        "cost": {"scrap": 180.0, "alloys": 30.0},
+        "growth": 1.45,
+        "max_level": 3,
+        "effects": {"planet_output_bonus": "scrap", "output_bonus": 0.35},
+    },
     "launch_silo": {
         "name": "火箭垂直发射井",
         "cost": {},              # 造价走 LAUNCH_SILO_STAGES（阶段式，不走递增曲线）
@@ -421,6 +443,39 @@ def planet_traits(planet_id: int) -> dict[str, Any]:
             for resource in ("scrap", "chips")
         },
     }
+
+
+#: 外星球专属设施：星球 → 设施（《数值平衡表》§15.4；只有该星球能建）
+STAR_EXCLUSIVE_FACILITIES: dict[int, str] = {
+    1: "geothermal_forge",
+    2: "cryo_salvage_bench",
+    3: "asteroid_sorter",
+}
+
+
+def facility_planet_scope(facility_id: str) -> int | None:
+    """该设施被限定在哪颗星球（`None` = 任何已建基地的星球都能建）。"""
+    for planet_id, scoped_facility in STAR_EXCLUSIVE_FACILITIES.items():
+        if scoped_facility == facility_id:
+            return int(planet_id)
+    return None
+
+
+def facility_output_bonus(facility_id: str, level: int) -> tuple[str, float]:
+    """专属设施的产出加成：返回（资源, 加成值）；非产出型设施返回空串与 0。"""
+    effects = FACILITY_SPECS.get(facility_id, {}).get("effects", {})
+    resource = effects.get("planet_output_bonus")
+    if not resource or int(level) <= 0:
+        return "", 0.0
+    return str(resource), round(float(effects.get("output_bonus", 0.0)) * int(level), 4)
+
+
+def facility_smelt_speed_bonus(facility_id: str, level: int) -> float:
+    """专属设施的熔炼速度加成（加性，与科技/小游戏相加）。"""
+    effects = FACILITY_SPECS.get(facility_id, {}).get("effects", {})
+    if int(level) <= 0:
+        return 0.0
+    return round(float(effects.get("smelt_speed_bonus", 0.0)) * int(level), 4)
 #: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
 STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
 STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)

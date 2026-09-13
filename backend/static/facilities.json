@@ -231,6 +231,53 @@
         "tech_id": "tech_launch_silo_engineering"
       },
       "description": "阶段巨构（竖坑清理 → 导轨浇筑 → 推进剂加注 → 点火总装）。造价待定稿，本轮只入等级 0 占位行。"
+    },
+    {
+      "facility_id": "geothermal_forge",
+      "name": "地热熔炉",
+      "role": "INDUSTRY",
+      "cost": {
+        "scrap": 200,
+        "alloys": 40
+      },
+      "growth": 1.45,
+      "max_level": 3,
+      "effects": {
+        "smelt_speed_bonus": 0.3
+      },
+      "description": "熔岩星专属：把地热直接接进熔炼线，每座 +30% 熔炼速度（数值平衡表 §15.4）。"
+    },
+    {
+      "facility_id": "cryo_salvage_bench",
+      "name": "低温拆解台",
+      "role": "INDUSTRY",
+      "cost": {
+        "scrap": 150,
+        "chips": 30
+      },
+      "growth": 1.4,
+      "max_level": 3,
+      "effects": {
+        "planet_output_bonus": "chips",
+        "output_bonus": 0.3
+      },
+      "description": "冰卫星专属：低温让元件脆化，每座 +0.3 芯片产出系数（相加不相乘）。"
+    },
+    {
+      "facility_id": "asteroid_sorter",
+      "name": "碎石分选线",
+      "role": "INDUSTRY",
+      "cost": {
+        "scrap": 180,
+        "alloys": 30
+      },
+      "growth": 1.45,
+      "max_level": 3,
+      "effects": {
+        "planet_output_bonus": "scrap",
+        "output_bonus": 0.35
+      },
+      "description": "小行星带专属：自动分选碎星，每座 +0.35 废铁产出系数（相加不相乘）。"
     }
   ]
 }

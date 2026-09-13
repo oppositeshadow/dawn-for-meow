@@ -202,6 +202,25 @@ async def get_tech_effects(session: AsyncSession, slot_id: int, planet_id: int) 
     return await tech_service.unlocked_effects(session, slot_id, planet_id)
 
 
+def _exclusive_output_bonus(facilities: Mapping[str, int], resource: str) -> float:
+    """该星球专属设施给出的产出加成（§15.4，按设施等级累加）。"""
+    total = 0.0
+    for facility_id in B.FACILITY_IDS:
+        level = int(facilities.get(facility_id, 0))
+        bonus_resource, bonus = B.facility_output_bonus(facility_id, level)
+        if bonus_resource == resource:
+            total += bonus
+    return round(total, 4)
+
+
+def _exclusive_smelt_bonus(facilities: Mapping[str, int]) -> float:
+    """该星球专属设施给出的熔炼速度加成（§15.4）。"""
+    total = 0.0
+    for facility_id in B.FACILITY_IDS:
+        total += B.facility_smelt_speed_bonus(facility_id, int(facilities.get(facility_id, 0)))
+    return round(total, 4)
+
+
 async def get_smelt_speed_bonus(session: AsyncSession, slot_id: int) -> float:
     """小游戏【熔炉配比】攒下的永久熔炼加成（上限 +50%，§16 口径）。"""
     from app.models import MinigameState
@@ -304,14 +323,19 @@ def build_engine_state(
         "production_multiplier": production_multiplier,
         "catnip_efficiency": max(0.0, float(catnip_efficiency)),
         "planet_catnip_multiplier": B.planet_catnip_multiplier(colony.planet_id),
-        "planet_scrap_multiplier": B.planet_output_multiplier(colony.planet_id, "scrap"),
-        "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips"),
+        # 产出系数 = 星球系数 + 专属设施加成（**相加不相乘**，§15.4）
+        "planet_scrap_multiplier": B.planet_output_multiplier(colony.planet_id, "scrap")
+        + _exclusive_output_bonus(facilities, "scrap"),
+        "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips")
+        + _exclusive_output_bonus(facilities, "chips"),
         # 高频感应电炉座数（《数值平衡表》§3.5）：电力侧按 −10 kW/座 计，熔炼循环下一步接
         "induction_furnaces": int(facilities.get("induction_furnace", 0)),
         # 熔炼速度加成（§3.5）：科技 smelt_speed + 小游戏配方加成，相加后统一乘在炉次速率上
-        "smelt_speed_multiplier": 1.0 + (
-            float((tech_effects or {}).get("smelt_speed", 0.0)) + float(minigame_smelt_bonus)
-        ),
+        # 熔炼速度 = 1 + 科技 + 小游戏配方 + 专属设施（§3.5 / §15.4，全部相加）
+        "smelt_speed_multiplier": 1.0
+        + float((tech_effects or {}).get("smelt_speed", 0.0))
+        + float(minigame_smelt_bonus)
+        + _exclusive_smelt_bonus(facilities),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
@@ -967,6 +991,14 @@ async def build_facility(
         raise BadRequest(
             "LAUNCH_SILO_HOME_ONLY",
             "火箭垂直发射井是母星巨构；外星球请专注产能与物流，升空只能在母星完成",
+        )
+    # 外星球专属设施（§15.4）：只有对应星球能建——它就是"这颗星球的地理天赋"。
+    scoped_planet = B.facility_planet_scope(facility_id)
+    if scoped_planet is not None and target_planet != scoped_planet:
+        raise BadRequest(
+            "FACILITY_PLANET_MISMATCH",
+            f"【{B.FACILITY_SPECS[facility_id]['name']}】是【{B.PLANETS.get(scoped_planet, scoped_planet)}】的专属设施，"
+            f"不能建在别处",
         )
     if not B.facility_is_buildable(facility_id):
         raise BadRequest(
