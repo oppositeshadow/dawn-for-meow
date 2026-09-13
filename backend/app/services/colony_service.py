@@ -162,6 +162,12 @@ async def get_hangar_capacity(session: AsyncSession, slot_id: int, planet_id: in
     return int(military.hangar_capacity) if military else 0
 
 
+async def star_jobs_unlocked(session: AsyncSession, slot_id: int) -> bool:
+    """是否已升空（母星发射井推定完成）——星际职业工位与文明凝聚力的开关（§15.1）。"""
+    row = await session.get(FacilityState, (slot_id, B.HOME_PLANET_ID, "launch_silo"))
+    return bool(row and int(row.level) >= len(B.LAUNCH_SILO_STAGES))
+
+
 async def get_military(session: AsyncSession, slot_id: int, planet_id: int) -> MilitaryState | None:
     """军备池化行（安防预案与诱饵库存都在这里）。"""
     return await session.get(MilitaryState, (slot_id, planet_id))
@@ -531,6 +537,12 @@ async def settle_offline(
     )
     if research_event:
         report["research"] = research_event
+    # 文明凝聚力（§15.1）：本星球在岗的【文明呼噜大师】每只 +0.02/s（升空后可派，见 star_jobs_unlocked）
+    purr_masters = int(labor.get("purr_master", 0))
+    if purr_masters and delta_seconds > 0:
+        gained_unity = purr_masters * B.UNITY_PER_PURR_MASTER_PER_SEC * float(max(0, delta_seconds))
+        save.unity = round(float(save.unity) + gained_unity, 2)
+        report["gained_unity"] = round(gained_unity, 2)
     await session.flush()
     return report, colony, facilities, labor
 
@@ -550,6 +562,7 @@ def build_state_payload(
     garden_power_kw: float = 0.0,
     tech_effects: Mapping[str, float] | None = None,
     fortress_down: bool = False,
+    star_jobs_ready: bool = False,
     now: int,
 ) -> dict[str, Any]:
     cooldown_until = int(report.get("false_alarm_cooldown_until") or 0)
@@ -570,7 +583,11 @@ def build_state_payload(
         }
         for stage in B.LAUNCH_SILO_STAGES
     ]
-    limits = B.workstation_limits(facilities, hangar_capacity=hangar_capacity)
+    limits = B.workstation_limits(
+        facilities,
+        hangar_capacity=hangar_capacity,
+        star_jobs_unlocked=star_jobs_ready,
+    )
     power = power_balance(
         facilities,
         {"power_runner": labor.get("power_runner", 0)},
@@ -700,6 +717,7 @@ async def load_state(
         fortress_down=fortress_down,
         now=now,
         tech_effects=await get_tech_effects(session, slot_id, target_planet),
+        star_jobs_ready=await star_jobs_unlocked(session, slot_id),
     )
     await session.commit()
     return payload
@@ -721,6 +739,7 @@ def compare_snapshot_payload(
     *,
     hangar_capacity: int,
     tolerance: float,
+    star_jobs_ready: bool = False,
 ) -> list[str]:
     """前端预测值 vs 后端重算值；偏差 > 0.5% 记 SNAPSHOT_DRIFT warning。"""
     warnings: list[str] = []
@@ -745,7 +764,11 @@ def compare_snapshot_payload(
                 f"backend={colony.total_cats} deviation={deviation:.4%}"
             )
 
-    limits = B.workstation_limits(facilities, hangar_capacity=hangar_capacity)
+    limits = B.workstation_limits(
+        facilities,
+        hangar_capacity=hangar_capacity,
+        star_jobs_unlocked=star_jobs_ready,
+    )
     if payload.workstations:
         violations = workstation_violations(limits, payload.workstations)
         for job_id, detail in violations.items():
@@ -783,6 +806,7 @@ async def persist_snapshot(
         labor,
         hangar_capacity=hangar,
         tolerance=get_settings().snapshot_drift_tolerance,
+        star_jobs_ready=await star_jobs_unlocked(session, payload.slot),
     )
     for warning in warnings:
         logger.warning("%s slot=%s planet=%s", warning, payload.slot, planet_id)
@@ -894,7 +918,9 @@ async def dispatch_labor(
         raise BadRequest("BAD_REQUEST", f"未知工种 role={role}")
 
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
-    limits = B.workstation_limits(facilities, hangar_capacity=hangar)
+    limits = B.workstation_limits(
+        facilities, hangar_capacity=hangar, star_jobs_unlocked=await star_jobs_unlocked(session, slot_id)
+    )
     current = int(labor.get(role, 0))
     new_count = current + int(delta)
 
@@ -1097,7 +1123,9 @@ async def build_facility(
             )
 
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
-    limits = B.workstation_limits(facilities, hangar_capacity=hangar)
+    limits = B.workstation_limits(
+        facilities, hangar_capacity=hangar, star_jobs_unlocked=await star_jobs_unlocked(session, slot_id)
+    )
     power = power_balance(
         facilities,
         {"power_runner": labor.get("power_runner", 0)},

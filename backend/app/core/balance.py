@@ -339,6 +339,7 @@ def workstation_limits(
     facility_levels: Mapping[str, int],
     *,
     hangar_capacity: int = 0,
+    star_jobs_unlocked: bool = False,
 ) -> dict[str, int]:
     """各工种工位上限（工位 ≠ 工种；上限只由设施与机库决定）。"""
     limits: dict[str, int] = {}
@@ -346,7 +347,9 @@ def workstation_limits(
         limits[job_id] = int(facility_levels.get(facility_id, 0)) * slots_per_level
     limits["crew"] = int(hangar_capacity) * CREW_CATS_PER_VEHICLE
     for job_id in STAR_JOBS:
-        limits[job_id] = 0  # 星际职业由各星球特化科技解锁（P2）
+        # 星际职业（§15.1）：**升空之后**才开放，上限即表里的"每星球上限"
+        # （升空前恒为 0——玩家还没离开母星，自然没有星际岗位）
+        limits[job_id] = int(STAR_JOB_LIMITS[job_id]) if star_jobs_unlocked else 0
     return limits
 
 
