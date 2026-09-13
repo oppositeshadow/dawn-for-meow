@@ -38,13 +38,18 @@ def resolve_attack(
     attacker_atk: float,
     damage_type: str,
     target: dict[str, float],
+    attacker_vs_shield: float | None = None,
 ) -> tuple[dict[str, float], float, bool]:
     """单次攻击结算：返回（更新后的 target、对结构的实际伤害、是否触发弹射）。"""
     remaining = max(0.0, float(attacker_atk))
 
     # ① 护盾层
     if target.get("shield", 0.0) > 0 and remaining > 0:
+        # 模块【高频聚焦激光】给的是"该车对护盾的倍率"：与全局相克表**取较大值**，
+        # 不做相乘（否则同一份收益记两次账，§9.10 明确禁止）。
         shield_mult = B.SHIELD_DAMAGE_MULTIPLIER.get(damage_type, 1.0)
+        if attacker_vs_shield:
+            shield_mult = max(shield_mult, float(attacker_vs_shield))
         effective = remaining * shield_mult
         if target["shield"] >= effective:
             target["shield"] -= effective
@@ -95,6 +100,36 @@ def is_alive(unit: Mapping[str, float]) -> bool:
     return float(unit.get("hull", 0.0)) > 0
 
 
+def apply_module_effects(unit: dict[str, Any], modules: list[str] | None) -> dict[str, Any]:
+    """把车载模块的效果写进该单位的战斗快照（《数值平衡表》§9.10）。
+
+    * 只影响**装模块的那辆车**，不改全军；
+    * `vs_shield` 走"取较大值"而不是相乘，杜绝与全局相克表重复记账；
+    * 装模块的车在快照上留下 `modules` 列表，便于战报与界面追溯。
+    """
+    installed = [item for item in (modules or []) if item in B.VEHICLE_MODULES]
+    if not installed:
+        return unit
+    dps_bonus = 0.0
+    armor_bonus = 0.0
+    vs_shield = 0.0
+    for module_id in installed:
+        effects = B.VEHICLE_MODULES[module_id].get("effects", {})
+        dps_bonus += float(effects.get("dps_bonus", 0.0))
+        armor_bonus += float(effects.get("armor_bonus", 0.0))
+        vs_shield = max(vs_shield, float(effects.get("vs_shield", 0.0)))
+    if dps_bonus:
+        unit["dps"] = round(float(unit.get("dps", 0.0)) * (1.0 + dps_bonus), 4)
+    if armor_bonus:
+        unit["armor"] = round(float(unit.get("armor", 0.0)) * (1.0 + armor_bonus), 4)
+        if "armor_max" in unit:
+            unit["armor_max"] = round(float(unit["armor_max"]) * (1.0 + armor_bonus), 4)
+    if vs_shield:
+        unit["vs_shield"] = vs_shield
+    unit["modules"] = installed
+    return unit
+
+
 def resolve_skirmish(
     attackers: Sequence[dict[str, Any]],
     defenders: Sequence[dict[str, Any]],
@@ -137,6 +172,7 @@ def resolve_skirmish(
                     float(attacker["dps"]) * B.COMBAT_ROUND_SECONDS * float(attacker.get("morale", 1.0)),
                     str(attacker.get("damage_type", "KINETIC")),
                     target,
+                    attacker_vs_shield=attacker.get("vs_shield"),
                 )
                 if damage > 0:
                     log.append(

@@ -18,7 +18,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import balance as B
-from app.core.combat_engine import combat_power, morale_multiplier, resolve_skirmish, unit_from_spec
+from app.core.combat_engine import (
+    apply_module_effects,
+    combat_power,
+    morale_multiplier,
+    resolve_skirmish,
+    unit_from_spec,
+)
 from app.core.errors import BadRequest, Conflict, InsufficientResource, NotFound
 from app.models import BossState, ColonyState, LaborBucket, MilitaryState, VehicleUnit
 from app.models.military import VehicleStatus
@@ -694,6 +700,8 @@ async def ambush_convoy(
                 "hull": float(unit.hull),
             }
         )
+        # 车载模块（§9.10）：效果写进这辆车的快照，与科技/士气加成各走各的通道
+        apply_module_effects(snapshot, list(unit.modules or []))
         attackers.append(snapshot)
     defenders = [
         unit_from_spec(B.ENEMY_UNITS[unit_id], prefix=f"enemy-{unit_id}")
@@ -854,6 +862,7 @@ async def intercept_alert(
         snapshot["armor"] = float(unit.armor)
         snapshot["armor_max"] = float(unit.armor_max)
         snapshot["hull"] = float(unit.hull)
+        apply_module_effects(snapshot, list(unit.modules or []))  # 模块效果（§9.10）
         attackers.append(snapshot)
     enemy_spec = B.ENEMY_UNITS[B.INTERCEPT_ENEMY_UNIT]
     defenders = [unit_from_spec(enemy_spec, prefix="enemy-scout")]
