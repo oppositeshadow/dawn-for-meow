@@ -195,6 +195,13 @@ async def get_garden_power_kw(session: AsyncSession, slot_id: int, planet_id: in
     return float(garden_halo(garden).get("power_kw", 0.0))
 
 
+async def get_tech_effects(session: AsyncSession, slot_id: int, planet_id: int) -> dict[str, float]:
+    """已解锁科技里**已接入结算**的数值加成（模块 E5；口径见 balance.TECH_ACTIVE_EFFECT_KEYS）。"""
+    from app.services import tech_service
+
+    return await tech_service.unlocked_effects(session, slot_id, planet_id)
+
+
 # ----------------------------------------------------------------------
 # 工位上限（模块 C2 / D-2）
 # ----------------------------------------------------------------------
@@ -232,6 +239,7 @@ def build_engine_state(
     now: int | None = None,
     idle_vehicles: int = 0,
     production_multiplier: float = 1.0,
+    catnip_efficiency: float = 0.0,
 ) -> dict[str, Any]:
     """把 ORM 行摊平成离线引擎的输入（扁平字典，见 core/offline_engine 文档）。"""
     silent_grass = 0
@@ -277,6 +285,7 @@ def build_engine_state(
         "battery_kwh_max": colony.battery_kwh_max,
         "suspicion": colony.suspicion,
         "production_multiplier": production_multiplier,
+        "catnip_efficiency": max(0.0, float(catnip_efficiency)),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
@@ -383,6 +392,9 @@ async def settle_offline(
         military=military,
         now=now,
         idle_vehicles=idle_vehicles,
+        catnip_efficiency=(await get_tech_effects(session, save.slot_id, planet_id)).get(
+            "catnip_efficiency", 0.0
+        ),
     )
     delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)
@@ -479,6 +491,7 @@ def build_state_payload(
     hangar_capacity: int,
     military: MilitaryState | None = None,
     garden_power_kw: float = 0.0,
+    tech_effects: Mapping[str, float] | None = None,
     fortress_down: bool = False,
     now: int,
 ) -> dict[str, Any]:
@@ -546,6 +559,9 @@ def build_state_payload(
         "workstation_limits": limits,
         "facilities": {facility_id: int(level) for facility_id, level in facilities.items()},
         "suspicion": {"current": round(colony.suspicion, PROGRESS_PRECISION), "max": B.SUSPICION_MAX},
+        "tech_effects": {
+            key: round(float(value), 4) for key, value in (tech_effects or {}).items()
+        },
         "launch_silo": {
             "level": silo_level,
             "max_level": len(B.LAUNCH_SILO_STAGES),
@@ -619,6 +635,7 @@ async def load_state(
         garden_power_kw=await get_garden_power_kw(session, slot_id, target_planet),
         fortress_down=fortress_down,
         now=now,
+        tech_effects=await get_tech_effects(session, slot_id, target_planet),
     )
     await session.commit()
     return payload

@@ -54,6 +54,12 @@ class SuspicionBlock(BaseModel):
     max: float = 100.0
 
 
+class TechEffectsBlock(BaseModel):
+    """已解锁科技里**已接入结算**的数值加成（模块 E5；口径见 balance.TECH_ACTIVE_EFFECT_KEYS）。"""
+
+    catnip_efficiency: float = 0.0
+
+
 class SecurityBlock(BaseModel):
     """三级安防预案状态（模块 F）。"""
 
@@ -116,6 +122,7 @@ class ColonyStateData(BaseModel):
     workstation_limits: dict[str, int]
     facilities: dict[str, int]
     suspicion: SuspicionBlock
+    tech_effects: TechEffectsBlock = TechEffectsBlock()
     security: SecurityBlock = SecurityBlock()
     launch_silo: LaunchSiloBlock = LaunchSiloBlock()
     offline_report: OfflineReport

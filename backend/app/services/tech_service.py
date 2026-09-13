@@ -90,6 +90,37 @@ async def geek_research_rate(session: AsyncSession, slot_id: int, planet_id: int
     return round(geeks * B.GEEK_RESEARCH_PER_SEC, 4)
 
 
+async def unlocked_effects(
+    session: AsyncSession, slot_id: int, planet_id: int, *, keys: Sequence[str] = B.TECH_ACTIVE_EFFECT_KEYS
+) -> dict[str, float]:
+    """把已解锁科技 `buff_payload` 里**已接入结算**的数值字段汇总（模块 E5）。
+
+    口径：只认 `B.TECH_ACTIVE_EFFECT_KEYS` 白名单里的键，其余键仍属声明性载荷（界面展示用），
+    不参与任何结算 —— 避免"看起来有加成其实没接线"的假承诺。
+    """
+    rows = (
+        await session.execute(
+            select(TechRecord).where(
+                TechRecord.slot_id == slot_id,
+                TechRecord.planet_id == planet_id,
+                TechRecord.status == TechStatus.UNLOCKED,
+            )
+        )
+    ).scalars().all()
+    totals = dict.fromkeys(keys, 0.0)
+    for row in rows:
+        payload = row.buff_payload or {}
+        for key in keys:
+            value = payload.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                totals[key] += float(value)
+    if "catnip_efficiency" in totals:
+        totals["catnip_efficiency"] = round(
+            min(totals["catnip_efficiency"], B.TECH_CATNIP_EFFICIENCY_CAP), 4
+        )
+    return {key: round(value, 4) for key, value in totals.items()}
+
+
 def node_view(
     record: TechRecord,
     *,

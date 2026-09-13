@@ -273,7 +273,10 @@ def calculate_offline_progress(
         report["notes"].append("静默关灯中：全员停工，警戒度以 ×5 速率衰减，跌回 20 点后自动复工")
 
     # ---- 速率（§3.2 净产出公式）----
-    catnip_prod_rate = farmers * B.FARMER_CATNIP_PER_SEC * production_multiplier
+    # 科技加成（模块 E5 落地口径）：`catnip_efficiency` 来自已解锁科技的 buff_payload，
+    # 与士气系数相乘而不是相加 —— 两者是独立的乘算因子，避免"低士气时科技白给"。
+    catnip_efficiency = max(0.0, _num(current_state.get("catnip_efficiency")))
+    catnip_prod_rate = farmers * B.FARMER_CATNIP_PER_SEC * production_multiplier * (1.0 + catnip_efficiency)
     catnip_consume_rate = total_cats * B.CATNIP_CONSUME_PER_CAT_PER_SEC
     net_catnip_rate = catnip_prod_rate - catnip_consume_rate
 
