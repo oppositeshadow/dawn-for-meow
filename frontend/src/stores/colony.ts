@@ -46,6 +46,9 @@ export const useColonyStore = defineStore('colony', () => {
 
   const serverResources = ref<Resources>({ ...EMPTY_RESOURCES })
   const resources = ref<Resources>({ ...EMPTY_RESOURCES })
+  // 已解锁科技里**已接入结算**的加成（后端权威值，模块 E5）：显示插值必须用它，
+  // 否则前端预测值会比后端重算值低 20%，每 15 秒快照都会误触发对账告警。
+  const techEffects = ref<{ catnip_efficiency: number }>({ catnip_efficiency: 0 })
   const caps = ref<Record<string, number>>({})
   const power = ref<PowerState>({
     gen_kw: 0,
@@ -99,8 +102,9 @@ export const useColonyStore = defineStore('colony', () => {
 
   const catnipRate = computed(() => {
     const farmers = workstations.value.farmer ?? 0
+    const efficiency = 1 + Math.max(0, techEffects.value.catnip_efficiency ?? 0)
     return (
-      farmers * facilitiesStore.jobRate('farmer') -
+      farmers * facilitiesStore.jobRate('farmer') * efficiency -
       population.value.total * DISPLAY_BALANCE.catnipConsumePerCatPerSec
     )
   })
@@ -143,6 +147,7 @@ export const useColonyStore = defineStore('colony', () => {
     workstationLimits.value = data.workstation_limits
     facilities.value = data.facilities
     suspicion.value = data.suspicion
+    techEffects.value = data.tech_effects ?? { catnip_efficiency: 0 }
     security.value = data.security ?? security.value
     launchSilo.value = data.launch_silo ?? launchSilo.value
     offlineReport.value = data.offline_report
@@ -313,6 +318,7 @@ export const useColonyStore = defineStore('colony', () => {
     workstationLimits,
     facilities,
     suspicion,
+    techEffects,
     security,
     launchSilo,
     policy,

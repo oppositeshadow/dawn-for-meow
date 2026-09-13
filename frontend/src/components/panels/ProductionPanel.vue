@@ -15,6 +15,11 @@ const policyUpper = ref(80)
 const policyLower = ref(20)
 const policyShift = ref(2)
 
+// 面板上如实标出"科技到底给猫薄荷加了多少"（模块 E5），避免玩家以为有加成其实没接线
+const techBonusPercent = computed(() =>
+  Math.round((colony.techEffects.catnip_efficiency ?? 0) * 100),
+)
+
 const rows = computed(() =>
   facilitiesStore.planetJobs.map((job) => ({
     jobId: job.job_id,
@@ -44,6 +49,11 @@ function applyPolicy() {
   <section class="panel flex h-full flex-col">
     <div class="panel-title">
       <span>工位调度</span>
+      <Badge
+        v-if="techBonusPercent > 0"
+        :text="`猫薄荷 +${techBonusPercent}%（科技）`"
+        tone="accent"
+      />
       <Badge :text="`空闲 ${colony.population.unassigned}`" tone="accent" />
     </div>
 

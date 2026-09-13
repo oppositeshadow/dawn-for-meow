@@ -99,6 +99,8 @@ export interface ColonyStateData {
   workstation_limits: Record<string, number>
   facilities: Record<string, number>
   suspicion: SuspicionState
+  /** 已解锁科技里已接入结算的加成（模块 E5；口径见《数值平衡表》§6.4） */
+  tech_effects: { catnip_efficiency: number }
   security: SecurityState
   launch_silo: LaunchSiloBlock
   offline_report: OfflineReport
