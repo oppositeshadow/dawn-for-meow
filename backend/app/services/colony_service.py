@@ -228,6 +228,24 @@ def _exclusive_smelt_bonus(facilities: Mapping[str, int]) -> float:
     return round(total, 4)
 
 
+async def get_doctrine_effects(session: AsyncSession, slot_id: int) -> dict[str, float]:
+    """已点亮政令里**已接线**效果的汇总（§15.2；白名单见 `doctrine_service.WIRED_EFFECTS`）。"""
+    from app.services import doctrine_service
+
+    return await doctrine_service.active_effects(session, slot_id)
+
+
+def star_job_bonuses(labor: Mapping[str, int]) -> dict[str, float]:
+    """星际职业的加成（§15.1）：返回 {键: 加值}，供承载力 / 生产 / 士气等通道使用。"""
+    count = lambda job: int(labor.get(job, 0))  # noqa: E731
+    return {
+        # 行星生态塑形师：该星球承载力 K +8%/只
+        "cat_capacity": round(count("terraformer") * 0.08, 4),
+        # 文明呼噜大师：士气 +2%/只（按"生产效率"通道并入，与政令生产效率相加）
+        "morale": round(count("purr_master") * 0.02, 4),
+    }
+
+
 async def get_smelt_speed_bonus(session: AsyncSession, slot_id: int) -> float:
     """小游戏【熔炉配比】攒下的永久熔炼加成（上限 +50%，§16 口径）。"""
     from app.models import MinigameState
@@ -279,6 +297,8 @@ def build_engine_state(
     now: int | None = None,
     idle_vehicles: int = 0,
     production_multiplier: float = 1.0,
+    doctrine_effects: Mapping[str, float] | None = None,
+    star_jobs: Mapping[str, float] | None = None,
     catnip_efficiency: float = 0.0,
     tech_power_kw: float = 0.0,
     tech_effects: Mapping[str, float] | None = None,
@@ -317,7 +337,14 @@ def build_engine_state(
         "lube": colony.lube,
         "lube_max": colony.lube_max,
         "cats_total": colony.total_cats,
-        "max_cat_capacity": B.cat_capacity_on(facilities, colony.planet_id or 0),
+        # 承载力：星球系数 × (1 + 政令【行星绿化法案】 + 生态塑形师 +8%/只)
+        "max_cat_capacity": B.cat_capacity_on(
+            facilities,
+            colony.planet_id or 0,
+            extra_multiplier=1.0
+            + float((doctrine_effects or {}).get("cat_capacity", 0.0))
+            + float((star_jobs or {}).get("cat_capacity", 0.0)),
+        ),
         "birth_progress": colony.birth_progress,
         "farmers": int(labor.get("farmer", 0)),
         "scavengers": int(labor.get("scavenger", 0)),
@@ -327,7 +354,13 @@ def build_engine_state(
         "battery_kwh": colony.battery_kwh,
         "battery_kwh_max": colony.battery_kwh_max,
         "suspicion": colony.suspicion,
-        "production_multiplier": production_multiplier,
+        # 生产效率：士气系数 × (1 + 政令【下午三点晒太阳协议】 + 呼噜大师士气 +2%/只)
+        "production_multiplier": production_multiplier
+        * (
+            1.0
+            + float((doctrine_effects or {}).get("production_multiplier", 0.0))
+            + float((star_jobs or {}).get("morale", 0.0))
+        ),
         "catnip_efficiency": max(0.0, float(catnip_efficiency)),
         "planet_catnip_multiplier": B.planet_catnip_multiplier(colony.planet_id),
         # 产出系数 = 星球系数 + 专属设施加成（**相加不相乘**，§15.4）
@@ -344,7 +377,9 @@ def build_engine_state(
         + float(minigame_smelt_bonus)
         + _exclusive_smelt_bonus(facilities),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
-        "suspicion_growth_multiplier": 1.0,
+        # 警戒度增速：政令【午睡静默令】为负值（−20% ⇒ ×0.8）
+        "suspicion_growth_multiplier": 1.0
+        + float((doctrine_effects or {}).get("suspicion_growth", 0.0)),
         "silent_grass_count": silent_grass,
         "garden_power_kw": float(halo.get("power_kw", 0.0)),
         "tech_power_kw": max(0.0, float(tech_power_kw)),
@@ -444,6 +479,8 @@ async def settle_offline(
     idle_vehicles = await count_idle_vehicles(session, save.slot_id, planet_id)
     tech_effects = await get_tech_effects(session, save.slot_id, planet_id)
     minigame_smelt_bonus = await get_smelt_speed_bonus(session, save.slot_id)
+    doctrine_effects = await get_doctrine_effects(session, save.slot_id)
+    star_jobs = star_job_bonuses(labor)
     # 蓄电池电容池 = 基础值 + 科技扩容（每次结算重算一遍，幂等、不累加）
     colony.battery_kwh_max = B.BATTERY_KWH_MAX + float(tech_effects.get("battery_kwh_max", 0.0))
     engine_state = build_engine_state(
@@ -458,6 +495,8 @@ async def settle_offline(
         tech_power_kw=tech_effects.get("power_kw", 0.0),
         tech_effects=tech_effects,
         minigame_smelt_bonus=minigame_smelt_bonus,
+        doctrine_effects=doctrine_effects,
+        star_jobs=star_jobs,
     )
     delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)
@@ -563,6 +602,7 @@ def build_state_payload(
     tech_effects: Mapping[str, float] | None = None,
     fortress_down: bool = False,
     star_jobs_ready: bool = False,
+    capacity_multiplier: float = 1.0,
     now: int,
 ) -> dict[str, Any]:
     cooldown_until = int(report.get("false_alarm_cooldown_until") or 0)
@@ -627,7 +667,9 @@ def build_state_payload(
         },
         "population": {
             "total": colony.total_cats,
-            "max_cap": B.cat_capacity_on(facilities, colony.planet_id or 0),
+            "max_cap": B.cat_capacity_on(
+                facilities, colony.planet_id or 0, extra_multiplier=capacity_multiplier
+            ),
             "unassigned": colony.job_idle,
             "birth_progress": round(colony.birth_progress, PROGRESS_PRECISION),
         },
@@ -718,6 +760,9 @@ async def load_state(
         now=now,
         tech_effects=await get_tech_effects(session, slot_id, target_planet),
         star_jobs_ready=await star_jobs_unlocked(session, slot_id),
+        capacity_multiplier=1.0
+        + float((await get_doctrine_effects(session, slot_id)).get("cat_capacity", 0.0))
+        + float(star_job_bonuses(labor).get("cat_capacity", 0.0)),
     )
     await session.commit()
     return payload

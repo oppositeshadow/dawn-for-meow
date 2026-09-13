@@ -317,8 +317,13 @@ def cat_capacity(facility_levels: Mapping[str, int]) -> int:
     return cat_capacity_on(facility_levels, HOME_PLANET_ID)
 
 
-def cat_capacity_on(facility_levels: Mapping[str, int], planet_id: int) -> int:
-    """带星球系数的承载力（《数值平衡表》§15.3）：熔岩星 ×0.8 / 冰卫星 ×0.9 / 小行星带 ×1.2。"""
+def cat_capacity_on(
+    facility_levels: Mapping[str, int], planet_id: int, *, extra_multiplier: float = 1.0
+) -> int:
+    """带星球系数的承载力（《数值平衡表》§15.3）：熔岩星 ×0.8 / 冰卫星 ×0.9 / 小行星带 ×1.2。
+
+    `extra_multiplier` 承载"政令【行星绿化法案】+10%"与"生态塑形师 +8%/只"这类加成（相加后统一乘在这里）。
+    """
     boxes = int(facility_levels.get("housing_box", 0))
     condos = int(facility_levels.get("cat_condo", 0))
     base = max(
@@ -326,7 +331,7 @@ def cat_capacity_on(facility_levels: Mapping[str, int], planet_id: int) -> int:
         boxes * HOUSING_BOX_CAPACITY + condos * CAT_CONDO_CAPACITY,
     )
     multiplier = STAR_PLANET_CAPACITY_MULTIPLIER.get(int(planet_id), 1.0)
-    return max(MAX_CAT_CAPACITY_FLOOR, int(base * multiplier))
+    return max(MAX_CAT_CAPACITY_FLOOR, int(base * multiplier * max(0.0, extra_multiplier)))
 
 
 def breeding_rate_multiplier(facility_levels: Mapping[str, int]) -> float:

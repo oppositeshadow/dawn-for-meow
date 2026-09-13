@@ -43,6 +43,18 @@ description: 《喵星破晓》(Dawn for Meow) 本项目的开发流程清单—
   ⇒ 一次轰炸受损会"继承"给之后创建的每个档；表现是**测试偶发失败**（同库不同顺序结果不同，排查了好几轮）。
 * 检查命令：`rg -n "dict\(DEFAULT_" backend/app`（应只剩 deepcopy 写法）。
 
+### 三·四、"白名单登记 ≠ 接线"（自查清单）
+
+把某个效果键写进 `WIRED_EFFECTS` / `TECH_ACTIVE_EFFECT_KEYS` **只是登记，不等于它真的参与结算**。
+接线完成的唯一证据是：**引擎里有一处 `get_*_effects()` 的返回值被乘/加进公式**，并且**有用例证明数字变了**。
+
+* 自查命令：`rg -n "active_effects|unlocked_effects" backend/app/core backend/app/services` —
+  如果某个 `*_effects()` 只出现在 service 里、没有被 `colony_service` / `offline_engine` / `combat_service` 调用，就是假接线；
+* 真接线的四处样板（2026-09-14 补齐）：生产效率 → `build_engine_state` 的 `production_multiplier`；
+  承载力 → `cat_capacity_on(extra_multiplier=…)`；警戒度增速 → `suspicion_growth_multiplier`；
+  载具装甲 → `combat_service._fleet_armor_bonus`；
+* 每个新接线的效果**必须配一条"数字真的变了"的用例**（例：点亮政令后产出 ×1.2、承载力 10 → 11）。
+
 ## 三·二、多条件依赖走查（"静默失败"专项）
 
 新机制只要同时依赖**资源 + 电力 + 科技门槛**，就要人工走一遍"条件不满足"的分支：
