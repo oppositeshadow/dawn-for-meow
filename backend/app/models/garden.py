@@ -43,3 +43,7 @@ class GardenState(Base):
     unlocked_seed_ids: Mapped[list] = mapped_column(
         json_column(), nullable=False, default=list, comment="已解锁母本基因图鉴"
     )
+    codex_papers: Mapped[dict] = mapped_column(
+        json_column(), nullable=False, default=dict,
+        comment="异星植物学图鉴论文 {plant_id: {title, body, source, at}}（LLM 场景 5）",
+    )

@@ -139,6 +139,20 @@ function costText(cost: Record<string, number>): string {
         <div class="text-[10px] text-terminal-dim">
           图鉴：{{ view?.codex.map((id) => view?.plants[id]?.name).join('、') || '—' }}
         </div>
+        <details v-if="Object.keys(view?.codex_papers ?? {}).length" class="text-[10px] text-terminal-dim">
+          <summary class="cursor-pointer text-terminal-accent">
+            《异星植物学图鉴》论文 {{ Object.keys(view?.codex_papers ?? {}).length }} 篇
+          </summary>
+          <div
+            v-for="paper in Object.values(view?.codex_papers ?? {})"
+            :key="paper.plant_id"
+            class="mt-1 rounded border border-terminal-line/60 p-1"
+          >
+            <div class="text-terminal-text">《{{ paper.title }}》</div>
+            <p class="mt-0.5 leading-relaxed">{{ paper.body }}</p>
+            <div class="mt-0.5 text-[9px]">来源 {{ paper.source }} · 收录于 {{ new Date(paper.at * 1000).toLocaleString('zh-CN') }}</div>
+          </div>
+        </details>
       </div>
 
       <!-- 说明 -->

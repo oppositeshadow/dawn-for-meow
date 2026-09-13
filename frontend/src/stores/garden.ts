@@ -28,6 +28,10 @@ export interface GardenStateView {
   halo: Record<string, number>
   codex: string[]
   codex_total: number
+  codex_papers: Record<
+    string,
+    { plant_id: string; name: string | null; school: string | null; title: string; body: string; source: string; at: number }
+  >
   plants: Record<
     string,
     {
@@ -110,7 +114,11 @@ export const useGardenStore = defineStore('garden', () => {
         .map(([key, value]) => `${key} +${value}`)
         .join('、')
       colony.log(`采摘【${data.plant_name}】：${gained || '无产出'}`)
-      if (data.new_codex_entry) colony.log(`图鉴解锁新母本（共 ${data.codex_size} 种）`, 'warn')
+      if (data.new_codex_entry) {
+        colony.log(`图鉴解锁新母本（共 ${data.codex_size} 种）`, 'warn')
+        const paper = data.codex_paper as { title: string; source: string } | null | undefined
+        if (paper) colony.log(`《异星植物学图鉴》新增条目《${paper.title}》（来源 ${paper.source}）`)
+      }
     })
   }
 

@@ -97,6 +97,7 @@ async def state_view(
         "halo": {key: round(value, 4) for key, value in halo.items()},
         "codex": codex,
         "codex_total": len(plants),
+        "codex_papers": dict(garden.codex_papers or {}),
         "plants": {
             plant_id: {
                 "name": spec["name"],
@@ -203,6 +204,13 @@ async def harvest(
         garden.unlocked_seed_ids = codex
         new_codex = True
 
+    # LLM 场景 5：新收录的猫草补一条《异星植物学图鉴》论文（每种 1 次，失败走本地模板文案）
+    paper = None
+    if new_codex:
+        from app.services import plant_codex_service
+
+        paper = await plant_codex_service.ensure_paper(session, garden, plant, slot_id=slot_id)
+
     tile.update({"seed_id": None, "stage": None, "age": 0.0, "mutation_progress": 0.0})
     garden.grid_data = grid
     await session.commit()
@@ -215,6 +223,7 @@ async def harvest(
         "overflowed": overflowed,
         "new_codex_entry": new_codex,
         "codex_size": len(codex),
+        "codex_paper": paper,
     }
 
 
@@ -363,6 +372,13 @@ async def advance_garden(
             if plant["plant_id"] not in codex:
                 codex.append(plant["plant_id"])
                 garden.unlocked_seed_ids = codex
+                from app.services import plant_codex_service
+
+                paper = await plant_codex_service.ensure_paper(
+                    session, garden, plant, slot_id=slot_id, allow_llm=False
+                )
+                if paper:
+                    events.append(f"机械臂为【{plant['name']}】补写了图鉴论文《{paper['title']}》")
             # 自动收割的产出照样入库（机械臂托管不吞战利品）
             for resource, amount in plant["harvest"].items():
                 if resource == "byte_credits" and darknet is not None:
