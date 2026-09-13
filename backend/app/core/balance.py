@@ -331,6 +331,9 @@ TECH_REROLL_COOLDOWN_SECONDS = 600
 
 #: 星际特化科技成本阶梯（LLM 只填命题，数值由 Python 夹紧）
 STAR_TECH_TIER_COSTS: tuple[float, ...] = (500.0, 2000.0, 8000.0)
+#: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
+STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
+STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)
 
 # ======================================================================
 # §8 天网警戒度与通缉热度

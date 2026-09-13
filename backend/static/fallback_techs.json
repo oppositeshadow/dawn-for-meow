@@ -1,0 +1,51 @@
+{
+  "_comment": "LLM 场景 2 的本地兜底卡池（数值平衡表 §6.3）：外星球特化科技树 12 节点。断网/预算耗尽/防火墙拦截时按顺序取卡，保证玩法不阻塞；改文案只改这个文件。",
+  "planets": {
+    "1": [
+      { "tech_name": "地热虹吸管阵列", "flavor_text": "把岩浆的热量抽成电，管子得先不化。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "power_kw": 6.0 } },
+      { "tech_name": "熔渣重铸台", "flavor_text": "别人眼里的垃圾，在这里是回炉的零件。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "scrap", "out": "alloys", "ratio": 20 } },
+      { "tech_name": "火山灰滤芯", "flavor_text": "猫肺只有两片，滤芯必须勤换。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "morale_floor": 0.85 } },
+      { "tech_name": "岩浆浮桥", "flavor_text": "踩着冷却的岩壳过河，脚垫要厚。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "expedition_speed": 1.1 } },
+      { "tech_name": "耐热装甲涂层", "flavor_text": "陶瓷和猫毛混出来的作弊料。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "armor_bonus": 0.1 } },
+      { "tech_name": "高温熔炼催化", "flavor_text": "炉子烧得更狠一点，合金就来得更快。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "smelt_speed": 1.25 } },
+      { "tech_name": "熔岩潮汐发电", "flavor_text": "潮涨潮落，涡轮跟着打呼噜。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "battery_kwh", "out": "power_kw", "ratio": 0.5 } },
+      { "tech_name": "地幔钻探术", "flavor_text": "往下挖，直到听见星球的心跳。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "unlock_action": "DEEP_DRILL" } },
+      { "tech_name": "黑曜石刃口", "flavor_text": "天然玻璃，切铁如切纸。", "mechanic_type": "TRADE_OFF", "buff_payload": { "dps_bonus": 0.15, "hull_penalty": -0.05 } },
+      { "tech_name": "炽核冷却塔", "flavor_text": "热得能烤猫的地方，也需要降温。", "mechanic_type": "TRADE_OFF", "buff_payload": { "power_kw": 10.0, "lube_cost": 0.02 } },
+      { "tech_name": "星尘冶炼炉", "flavor_text": "把辐射里的杂质一层层舔掉。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "smelt_yield": 1.2 } },
+      { "tech_name": "灰烬生态圈", "flavor_text": "焦土上重新长出第一片叶子。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "garden_medium": "RADIATION", "mutation_bonus": 0.1 } }
+    ],
+    "2": [
+      { "tech_name": "冰下声呐阵", "flavor_text": "冰层是耳朵，回声是情报。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "intel_gain": 0.1 } },
+      { "tech_name": "低温超导线圈", "flavor_text": "越冷越听话的电缆。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "power_kw": 4.0, "battery_charge_rate": 1.2 } },
+      { "tech_name": "极夜长明灯", "flavor_text": "黑得久了，一点光就够猫走路。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "morale_floor": 0.9 } },
+      { "tech_name": "冻土微生物罐", "flavor_text": "冰里封着的古老小东西，醒了。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "catnip", "out": "chips", "ratio": 200 } },
+      { "tech_name": "无声推进器", "flavor_text": "连长哨都听不见的推背感。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "suspicion_rate": 0.85 } },
+      { "tech_name": "冰壳装甲板", "flavor_text": "冻硬的水，比铁便宜。", "mechanic_type": "TRADE_OFF", "buff_payload": { "armor_bonus": 0.2, "speed_penalty": -0.1 } },
+      { "tech_name": "镜海折光镜", "flavor_text": "让卫星以为自己没被看见。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "stealth_bonus": 0.15 } },
+      { "tech_name": "冰层隧道网", "flavor_text": "在整颗卫星里挖出捷径。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "unlock_action": "ICE_TUNNEL" } },
+      { "tech_name": "冷聚变点火器", "flavor_text": "把最冷的地方变成最热的一瞬间。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "dps_bonus": 0.12 } },
+      { "tech_name": "冰晶培养液", "flavor_text": "猫草在零度以下也会做梦。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "garden_medium": "ZERO_G", "growth_bonus": 0.15 } },
+      { "tech_name": "深潜信标", "flavor_text": "沉下去之前，先留一根线。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "expedition_success": 0.1 } },
+      { "tech_name": "极夜歌谣电台", "flavor_text": "猫猫们靠重复的调子记住时间。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "unity_gain": 0.1 } }
+    ],
+    "3": [
+      { "tech_name": "矿脉声纹扫描", "flavor_text": "敲一下石头，听它藏着什么。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "vein_hint": 1 } },
+      { "tech_name": "自旋重力锚", "flavor_text": "在转动的石头上站稳，先得造个假重力。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "expedition_speed": 1.2 } },
+      { "tech_name": "碎星牵引网", "flavor_text": "把路过的小石头兜进袋子里。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "battery", "out": "scrap", "ratio": 1 } },
+      { "tech_name": "氦雨收集器", "flavor_text": "下的是雨，接的是燃料。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "battery_gain": 0.15 } },
+      { "tech_name": "轨道锻造厂", "flavor_text": "在失重里敲打，火星不会烫到猫。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "smelt_speed": 1.3 } },
+      { "tech_name": "陨铁复合装甲", "flavor_text": "天上掉下来的铁，本来就更硬。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "armor_bonus": 0.15 } },
+      { "tech_name": "失控轨道预警", "flavor_text": "算准哪块石头会在哪一秒擦过。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "raid_warning": 1 } },
+      { "tech_name": "陨石捕获舱", "flavor_text": "张开嘴，等一块石头自己撞进来。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "unlock_action": "METEOR_CAPTURE" } },
+      { "tech_name": "真空焊枪", "flavor_text": "没有空气，也能把两块铁焊死。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "vehicle_repair_speed": 1.2 } },
+      { "tech_name": "星带伏击阵位", "flavor_text": "藏在石头阴影里，等车队自己开过来。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "ambush_bonus": 0.15 } },
+      { "tech_name": "氦-3 精馏塔", "flavor_text": "把气体分开，留下最贵的那一层。", "mechanic_type": "CONVERSION", "buff_payload": { "in": "alloys", "out": "battery", "ratio": 10 } },
+      { "tech_name": "碎星航道图", "flavor_text": "画完这张图，星带就不再是迷宫。", "mechanic_type": "UNLOCK_ABILITY", "buff_payload": { "unlock_action": "STAR_LANE_MAP", "logistics_slots": 1 } }
+    ]
+  },
+  "generic": [
+    { "tech_name": "深空补给协议", "flavor_text": "把补给罐挂在航线尽头。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "logistics_slots": 1 } },
+    { "tech_name": "猫爪工程学", "flavor_text": "所有工具都按爪垫重新设计一遍。", "mechanic_type": "PASSIVE_BUFF", "buff_payload": { "build_speed": 1.05 } }
+  ]
+}

@@ -277,12 +277,19 @@ async def reroll_tech(
 
     record.current_progress = round(float(record.current_progress) - cost, 2)
     _reroll_cooldown[key] = time.time()
+    # LLM 场景 2：把这枚节点的卡面重新生成一张（失败走本地卡池，玩家零感知）
+    from app.services import planet_tech_service
+
+    card = await planet_tech_service.reroll_card(
+        session, record, slot_id=slot_id, planet_id=planet_id
+    )
     await session.commit()
     return {
         "tech_id": tech_id,
         "cost": cost,
         "remaining_progress": float(record.current_progress),
         "cooldown_seconds": B.TECH_REROLL_COOLDOWN_SECONDS,
+        "card": card,
     }
 
 

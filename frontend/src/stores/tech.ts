@@ -105,8 +105,16 @@ export const useTechStore = defineStore('tech', () => {
   async function reroll(techId: string) {
     busyTechId.value = techId
     try {
-      await post('/tech/reroll', { slot: colony.slotId, planet_id: colony.planetId, tech_id: techId })
-      colony.log('重 Roll 完成：候选科技卡已刷新')
+      const payload = await post<{ data: { cost: number; card?: { tech_name: string; source: string } } }>(
+        '/tech/reroll',
+        { slot: colony.slotId, planet_id: colony.planetId, tech_id: techId },
+      )
+      const card = payload?.data?.card
+      colony.log(
+        card
+          ? `重 Roll 完成：新卡面【${card.tech_name}】（来源 ${card.source}），消耗 ${payload.data.cost} 算力进度`
+          : '重 Roll 完成：候选科技卡已刷新',
+      )
       await refresh()
     } catch (error) {
       colony.log(`重 Roll 失败：${String(error instanceof Error ? error.message : error)}`, 'crit')

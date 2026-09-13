@@ -41,6 +41,20 @@ async def ensure_biome(
     if planet is None:
         raise NotFound("BAD_REQUEST", f"未知星球 planet_id={planet_id}")
     if planet_id == B.HOME_PLANET_ID or planet.biome_tag:
+        # 生态标签已存在时不再调 LLM，但仍要保证特化科技树已铺好（幂等、0 Token）
+        if planet_id != B.HOME_PLANET_ID:
+            from app.services import planet_tech_service
+
+            specialized = await planet_tech_service.ensure_specialized_techs(session, slot_id, planet_id)
+            if specialized:
+                return {
+                    "planet_id": planet_id,
+                    "biome_tag": planet.biome_tag,
+                    "affixes": [],
+                    "source": None,
+                    "specialized_techs": specialized,
+                    "usage": {},
+                }
         return None
 
     fallback = FALLBACK_BIOMES.get(planet_id) or PlanetBiome(biome_tag="未命名星域", affixes=[])
@@ -67,6 +81,10 @@ async def ensure_biome(
 
     label = biome.biome_tag if not biome.affixes else f"{biome.biome_tag} · {'、'.join(biome.affixes[:2])}"
     planet.biome_tag = label[:64]
+    # LLM 场景 2：铺该星球的特化科技树（首次登录 1 次批量生成，失败走本地卡池）
+    from app.services import planet_tech_service
+
+    specialized = await planet_tech_service.ensure_specialized_techs(session, slot_id, planet_id)
     await session.flush()
     logger.info("行星生态标签生成：slot=%s planet=%s source=%s tag=%s", slot_id, planet_id, source, planet.biome_tag)
     return {
@@ -74,5 +92,6 @@ async def ensure_biome(
         "biome_tag": planet.biome_tag,
         "affixes": list(biome.affixes),
         "source": source,
+        "specialized_techs": specialized,
         "usage": usage,
     }

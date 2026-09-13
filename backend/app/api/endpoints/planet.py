@@ -88,6 +88,7 @@ async def post_planet_switch(
             "name": B.PLANETS.get(payload.planet_id, str(payload.planet_id)),
             "biome_tag": target.biome_tag,
             "biome_source": biome["source"] if biome else None,
+            "specialized_techs": biome["specialized_techs"] if biome else None,
             "switched_at": now_timestamp(),
         },
     )
