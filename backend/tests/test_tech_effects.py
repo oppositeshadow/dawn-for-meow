@@ -53,7 +53,8 @@ async def test_locked_tech_contributes_nothing(client, session) -> None:
     await session.rollback()
     totals = await tech_service.unlocked_effects(session, 1, 0)
     # 白名单每个键都给 0 占位（当前白名单：猫薄荷 / 发电 / 两种装甲写法）
-    assert totals == {"catnip_efficiency": 0.0, "power_kw": 0.0, "fleet_armor": 0.0, "armor_bonus": 0.0}
+    assert set(totals) == set(B.TECH_ACTIVE_EFFECT_KEYS)
+    assert all(value == 0.0 for value in totals.values())
 
 
 async def test_unlocked_tech_bonus_shows_and_is_capped(client, session) -> None:

@@ -28,9 +28,9 @@ async def test_node_reports_active_and_pending_effects(client, session) -> None:
     assert armor["pending_effects"] == {}
 
     battery = node(data, "tech_battery_matrix")
-    # battery_kwh_max 尚未接线 ⇒ 只出现在 pending_effects（如实告知，不假装加成已生效）
-    assert battery["active_effects"] == {}
-    assert battery["pending_effects"] == {"battery_kwh_max": 200}
+    # battery_kwh_max 已接线（电容池扩容）⇒ 出现在 active_effects
+    assert battery["active_effects"] == {"battery_kwh_max": 200}
+    assert battery["pending_effects"] == {}
 
     # 人工塞入一个白名单键 ⇒ 立刻反映为"已接线"
     await session.rollback()

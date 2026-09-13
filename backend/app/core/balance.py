@@ -333,6 +333,7 @@ TECH_ACTIVE_EFFECT_KEYS: tuple[str, ...] = (
     "power_kw",
     "fleet_armor",   # 母星节点写法（重型破拆机甲外骨骼）
     "armor_bonus",   # 外星球特化卡写法（黑曜石刃口 / 冰壳装甲板…）
+    "battery_kwh_max",  # 蓄电池电容池扩容（高能蓄电池组）
 )
 #: 科技猫薄荷加成上限：满配 +60%（防止未来节点叠加把产粮曲线拉爆）
 TECH_CATNIP_EFFICIENCY_CAP = 0.6

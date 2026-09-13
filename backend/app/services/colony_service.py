@@ -390,6 +390,8 @@ async def settle_offline(
     military = await get_military(session, save.slot_id, planet_id)
     idle_vehicles = await count_idle_vehicles(session, save.slot_id, planet_id)
     tech_effects = await get_tech_effects(session, save.slot_id, planet_id)
+    # 蓄电池电容池 = 基础值 + 科技扩容（每次结算重算一遍，幂等、不累加）
+    colony.battery_kwh_max = B.BATTERY_KWH_MAX + float(tech_effects.get("battery_kwh_max", 0.0))
     engine_state = build_engine_state(
         colony,
         labor,
@@ -1002,7 +1004,9 @@ async def build_facility(
         colony.job_idle = 1
         narrative = FIRST_CAT_NARRATIVE
     if facility_id == "battery_bank":
-        colony.battery_kwh_max = B.BATTERY_KWH_MAX
+        # 科技扩容单独累加：建蓄电池组是"拿到基础容量"，科技是"在基础之上再加"
+        effects = await get_tech_effects(session, slot_id, planet_id)
+        colony.battery_kwh_max = B.BATTERY_KWH_MAX + float(effects.get("battery_kwh_max", 0.0))
     if facility_id == "launch_silo":
         if row.level < len(B.LAUNCH_SILO_STAGES):
             narrative = f"发射井阶段 {row.level}【{B.LAUNCH_SILO_STAGES[row.level - 1]['name']}】完成"
