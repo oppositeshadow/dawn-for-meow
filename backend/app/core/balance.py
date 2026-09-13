@@ -328,7 +328,7 @@ PLANET0_TOTAL_RESEARCH = 213_280.0
 #: 科研等级（Tech Tier）加速：Tier 2 打 8 折、Tier 3 打 6 折
 TECH_TIER_TIME_DISCOUNT: dict[int, float] = {1: 1.0, 2: 0.8, 3: 0.6}
 #: 科技 buff_payload 里**已接入结算**的字段（其余仍是声明性载荷，接入时逐个往这里加）
-TECH_ACTIVE_EFFECT_KEYS: tuple[str, ...] = ("catnip_efficiency",)
+TECH_ACTIVE_EFFECT_KEYS: tuple[str, ...] = ("catnip_efficiency", "power_kw")
 #: 科技猫薄荷加成上限：满配 +60%（防止未来节点叠加把产粮曲线拉爆）
 TECH_CATNIP_EFFICIENCY_CAP = 0.6
 #: 关键节点【范式突破】：前代科技耗时减半、极客基础产出翻倍

@@ -52,7 +52,7 @@ async def test_locked_tech_contributes_nothing(client, session) -> None:
 
     await session.rollback()
     totals = await tech_service.unlocked_effects(session, 1, 0)
-    assert totals == {"catnip_efficiency": 0.0}
+    assert totals == {"catnip_efficiency": 0.0, "power_kw": 0.0}  # 白名单为空表也给 0 占位
 
 
 async def test_unlocked_tech_bonus_shows_and_is_capped(client, session) -> None:
@@ -100,18 +100,24 @@ async def test_bonus_actually_multiplies_farmer_output(client, session) -> None:
     assert abs(boosted - expected) <= expected * 0.02
 
 
-async def test_specialized_declarative_keys_are_not_settled(client, session) -> None:
-    """特化卡上的 power_kw 等尚未接入 ⇒ 不在白名单里，就不会偷偷生效。"""
+
+async def test_whitelist_settles_power_kw_but_not_other_keys(client, session) -> None:
+    """白名单只认已接入的键：`power_kw` 现在真发电，`armor_bonus` 这类仍不生效。"""
     await _bootstrap(client)
+    before = (await client.get(STATE_URL, params={"slot": 1})).json()["data"]["power"]["gen_kw"]
     row = (
         await session.execute(
             select(TechRecord).where(TechRecord.slot_id == 1, TechRecord.planet_id == 0)
         )
     ).scalars().first()
-    row.buff_payload = {"power_kw": 999, "catnip_efficiency": 0.1}
+    row.buff_payload = {"power_kw": 5, "catnip_efficiency": 0.1, "armor_bonus": 0.9}
     row.status = TechStatus.UNLOCKED
     await session.commit()
 
     totals = await tech_service.unlocked_effects(session, 1, 0)
-    assert "power_kw" not in totals
+    assert totals["power_kw"] == 5.0
     assert totals["catnip_efficiency"] == 0.1
+    assert "armor_bonus" not in totals  # 未接入的键绝不偷偷生效
+
+    after = (await client.get(STATE_URL, params={"slot": 1})).json()["data"]["power"]["gen_kw"]
+    assert round(after - before, 2) == 5.0  # 净电力真的多了 5 kW

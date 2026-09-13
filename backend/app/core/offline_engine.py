@@ -67,6 +67,7 @@ def power_balance(
     *,
     induction_furnaces: int = 0,
     garden_power_kw: float = 0.0,
+    tech_power_kw: float = 0.0,
 ) -> dict[str, Any]:
     """净电力平衡（kW，流量口径，数值平衡表 §7.1）。
 
@@ -77,6 +78,7 @@ def power_balance(
         _int(labor.get("power_runner", 0)) * B.POWER_RUNNER_KW
         + _int(facilities.get("solar_panel", 0)) * B.SOLAR_PANEL_KW
         + _num(garden_power_kw)  # 在田光环：荧光苔藓 +5 kW/株
+        + _num(tech_power_kw)  # 已解锁科技的发电量（§6.4 白名单里的 power_kw）
     )
     load = (
         _int(facilities.get("turing_terminal", 0)) * B.TURING_TERMINAL_LOAD_KW
@@ -211,6 +213,7 @@ def calculate_offline_progress(
     go_dark = bool(current_state.get("go_dark", False))
     cooldown_active = bool(cooldown_until) and now_ts < cooldown_until
     garden_power_kw = _num(current_state.get("garden_power_kw", 0.0))
+    tech_power_kw = _num(current_state.get("tech_power_kw", 0.0))
     garden_suspicion_raw = current_state.get("garden_suspicion_per_sec")
     garden_suspicion_per_sec = None if garden_suspicion_raw is None else _num(garden_suspicion_raw)
 
@@ -220,6 +223,7 @@ def calculate_offline_progress(
         total_cats,
         induction_furnaces=_int(current_state.get("induction_furnaces", 0)),
         garden_power_kw=garden_power_kw,
+        tech_power_kw=tech_power_kw,
     )
 
     report: dict[str, Any] = {

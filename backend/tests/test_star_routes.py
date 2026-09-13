@@ -54,8 +54,10 @@ async def test_migrate_departs_immediately_and_creates_in_flight_route(client, s
     assert target.total_cats == 0
 
 
-async def test_route_delivers_on_arrival_and_clears(client, session) -> None:
+async def test_route_delivers_on_arrival_and_clears(client, session, monkeypatch) -> None:
     await _boot(client, session, cats=4)
+    # route_id 含出发时间戳 ⇒ 是否被劫掠取决于哈希；这条用例只测"交付"，先关掉劫掠
+    monkeypatch.setattr(B, "STAR_ROUTE_RAID_CHANCE", 0.0)
     await client.post(MIGRATE_URL, json={"slot": 1, "to_planet": 1, "count": 2})
 
     # 把抵达时间挪到过去（等价于等满 60 秒）

@@ -240,6 +240,7 @@ def build_engine_state(
     idle_vehicles: int = 0,
     production_multiplier: float = 1.0,
     catnip_efficiency: float = 0.0,
+    tech_power_kw: float = 0.0,
 ) -> dict[str, Any]:
     """把 ORM 行摊平成离线引擎的输入（扁平字典，见 core/offline_engine 文档）。"""
     silent_grass = 0
@@ -291,6 +292,7 @@ def build_engine_state(
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,
         "garden_power_kw": float(halo.get("power_kw", 0.0)),
+        "tech_power_kw": max(0.0, float(tech_power_kw)),
         "garden_suspicion_per_sec": float(halo.get("suspicion_per_sec", 0.0)),
         "expedition_active": False,
     }
@@ -385,6 +387,7 @@ async def settle_offline(
 
     military = await get_military(session, save.slot_id, planet_id)
     idle_vehicles = await count_idle_vehicles(session, save.slot_id, planet_id)
+    tech_effects = await get_tech_effects(session, save.slot_id, planet_id)
     engine_state = build_engine_state(
         colony,
         labor,
@@ -393,9 +396,8 @@ async def settle_offline(
         military=military,
         now=now,
         idle_vehicles=idle_vehicles,
-        catnip_efficiency=(await get_tech_effects(session, save.slot_id, planet_id)).get(
-            "catnip_efficiency", 0.0
-        ),
+        catnip_efficiency=tech_effects.get("catnip_efficiency", 0.0),
+        tech_power_kw=tech_effects.get("power_kw", 0.0),
     )
     delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)
@@ -520,6 +522,7 @@ def build_state_payload(
         {"power_runner": labor.get("power_runner", 0)},
         colony.total_cats,
         garden_power_kw=garden_power_kw,
+        tech_power_kw=float((tech_effects or {}).get("power_kw", 0.0)),
     )
     return {
         "slot_id": save.slot_id,
