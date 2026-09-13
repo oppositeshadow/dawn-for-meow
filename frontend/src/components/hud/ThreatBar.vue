@@ -17,7 +17,7 @@ const suspicionTone = computed<'accent' | 'warn' | 'crit'>(() => {
 </script>
 
 <template>
-  <div class="panel flex items-center gap-6 px-3 py-2">
+  <div class="panel flex flex-wrap items-center gap-6 px-3 py-2">
     <div class="flex min-w-[190px] items-center gap-2">
       <Zap class="h-3.5 w-3.5 text-terminal-dim" />
       <span class="stat-label">净电力</span>
@@ -51,6 +51,11 @@ const suspicionTone = computed<'accent' | 'warn' | 'crit'>(() => {
         诱饵 {{ colony.security.decoy_count }}
       </span>
     </div>
+    <!-- 静默关灯会让全员停工（科研/拾荒一起归零），但玩家看不出原因 ⇒ 直接给下一步 -->
+    <p v-if="colony.security.go_dark" class="basis-full text-[10px] leading-relaxed text-terminal-crit">
+      静默关灯：全员停工，科研与拾荒一并归零。降噪靠【多孔纸浆隔音降噪层】或种【消音绒草】；
+      也可以放【诱饵】把巡逻机引开、或用战车截杀处理警报。警戒度会以 ×5 速率衰减，跌回 20 点自动复工。
+    </p>
 
     <div class="flex items-center gap-2">
       <Users class="h-3.5 w-3.5 text-terminal-dim" />
