@@ -180,7 +180,11 @@ class DispatchRequest(BaseModel):
 
     slot: int = Field(default=1, ge=1, le=3)
     planet_id: int | None = None
-    role: str = Field(description="工种 ID（job_id）：farmer / scavenger / geek / power_runner / crew")
+    # 《代码结构稿》v1.3 定稿字段名是 `job_id`；`role` 是历史名，保留兼容（两者等价，推荐用 job_id）
+    job_id: str | None = Field(
+        default=None, description="工种 ID：farmer / scavenger / geek / power_runner / crew"
+    )
+    role: str | None = Field(default=None, description="工种 ID（历史字段名，保留兼容）")
     delta: int = Field(description="工位增减量，正数上工、负数下岗")
     policy: DispatchPolicy | None = Field(default=None, description="可选的迟滞换班策略")
 

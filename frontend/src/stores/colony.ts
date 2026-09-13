@@ -122,6 +122,9 @@ export const useColonyStore = defineStore('colony', () => {
     if ((facilities.value.farm_plot ?? 0) === 0) return 'FIRST_FARM' as const
     if ((workstations.value.farmer ?? 0) === 0) return 'ASSIGN_FARMER' as const
     if ((facilities.value.scavenge_station ?? 0) === 0) return 'AUTOMATE_SCRAP' as const
+    // 只有 1 座纸箱窝时承载力 K=1 ⇒ 逻辑斯蒂繁育增长为 0，第 2 只猫永远不会来（§3.4 的
+    // 冷启动路径本来就含「第二座窝 6 废铁」，这里把这一步显式化成引导）
+    if ((facilities.value.housing_box ?? 0) < 2) return 'SECOND_BOX' as const
     // 有闲置猫口就先上岗（手上有猫比扩容更急）
     if ((workstations.value.scavenger ?? 0) === 0) return 'ASSIGN_SCAVENGER' as const
     // 农夫与拾荒猫都上工 ⇒ 冷启动心流闭环完成，后续交给长线经营

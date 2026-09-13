@@ -70,7 +70,7 @@ async def post_colony_dispatch(
 ) -> DispatchEnvelope:
     data = await colony_service.dispatch_labor(
         session,
-        role=payload.role,
+        role=payload.job_id or payload.role or "",
         delta=payload.delta,
         slot_id=payload.slot,
         planet_id=payload.planet_id,

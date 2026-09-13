@@ -71,8 +71,16 @@ const coldStartSteps: Record<string, { title: string; body: string; action: stri
     action: '建造废品解体操作台（8 废铁）',
     run: () => void colony.build('scavenge_station'),
   },
+  SECOND_BOX: {
+    title: '⑤ 给第二只猫留个位置',
+    body:
+      '只有 1 座纸箱窝时，猫口正好等于承载力 K——逻辑斯蒂繁育的增长为 0，' +
+      '第二只猫永远不会来。再花 6 废铁造一座【瓦楞纸箱窝】，K 变成 2，猫口才会继续长。',
+    action: '建造第二座纸箱窝（6 废铁）',
+    run: () => void colony.build('housing_box'),
+  },
   ASSIGN_SCAVENGER: {
-    title: '⑤ 派猫猫去捡废铁',
+    title: '⑥ 派猫猫去捡废铁',
     body: '第 2 只猫已经住进来了，把它派到【废品解体操作台】，机械废铁就会以 0.5/s 自动累积。',
     action: '指派 1 只拾荒猫',
     run: () => void colony.dispatch('scavenger', 1),
