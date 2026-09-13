@@ -286,6 +286,7 @@ def build_engine_state(
         "suspicion": colony.suspicion,
         "production_multiplier": production_multiplier,
         "catnip_efficiency": max(0.0, float(catnip_efficiency)),
+        "planet_catnip_multiplier": B.planet_catnip_multiplier(colony.planet_id),
         "breeding_rate_multiplier": B.breeding_rate_multiplier(facilities),
         "suspicion_growth_multiplier": 1.0,
         "silent_grass_count": silent_grass,

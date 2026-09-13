@@ -95,7 +95,9 @@ async def test_bonus_actually_multiplies_farmer_output(client, session) -> None:
 
     await _unlock(session, FARM_TECH)
     boosted = await harvest(300)
-    assert boosted == round(baseline * 1.2, 2)
+    # 秒级时间戳截断会让两次 Δt 差 1 秒 ⇒ 用 2% 容差（数值本身仍是 ×1.2 的口径）
+    expected = baseline * 1.2
+    assert abs(boosted - expected) <= expected * 0.02
 
 
 async def test_specialized_declarative_keys_are_not_settled(client, session) -> None:

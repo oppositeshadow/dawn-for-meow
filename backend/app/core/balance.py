@@ -358,6 +358,13 @@ STAR_ROUTE_RAID_RAGE_THRESHOLD = 60
 STAR_ROUTE_RAID_DELAY_SECONDS = 600.0
 #: 三颗星球各自的承载力系数（§15.3：熔岩星难住人 / 冰卫星中庸 / 星带能塞猫）
 STAR_PLANET_CAPACITY_MULTIPLIER: dict[int, float] = {1: 0.8, 2: 0.9, 3: 1.2}
+#: 三颗星球各自的产粮系数（§15.3：熔岩星种不活、冰卫星靠温室、星带勉强够吃）
+STAR_PLANET_CATNIP_MULTIPLIER: dict[int, float] = {1: 0.7, 2: 1.0, 3: 0.9}
+
+
+def planet_catnip_multiplier(planet_id: int) -> float:
+    """该星球的产粮系数（母星 1.0，外星球见 `STAR_PLANET_CATNIP_MULTIPLIER`）。"""
+    return float(STAR_PLANET_CATNIP_MULTIPLIER.get(int(planet_id), 1.0))
 #: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
 STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
 STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)

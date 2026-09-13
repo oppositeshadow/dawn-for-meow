@@ -276,7 +276,12 @@ def calculate_offline_progress(
     # 科技加成（模块 E5 落地口径）：`catnip_efficiency` 来自已解锁科技的 buff_payload，
     # 与士气系数相乘而不是相加 —— 两者是独立的乘算因子，避免"低士气时科技白给"。
     catnip_efficiency = max(0.0, _num(current_state.get("catnip_efficiency")))
-    catnip_prod_rate = farmers * B.FARMER_CATNIP_PER_SEC * production_multiplier * (1.0 + catnip_efficiency)
+    # 星球产粮系数（§15.3 第③步）：熔岩星 0.7 / 冰卫星 1.0 / 星带 0.9；母星 1.0
+    planet_catnip = _num(current_state.get("planet_catnip_multiplier"), 1.0)
+    catnip_prod_rate = (
+        farmers * B.FARMER_CATNIP_PER_SEC * production_multiplier
+        * (1.0 + catnip_efficiency) * max(0.0, planet_catnip)
+    )
     catnip_consume_rate = total_cats * B.CATNIP_CONSUME_PER_CAT_PER_SEC
     net_catnip_rate = catnip_prod_rate - catnip_consume_rate
 
