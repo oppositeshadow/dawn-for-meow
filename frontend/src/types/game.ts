@@ -296,6 +296,11 @@ export interface HangarView {
   factory_frozen_until: number | null
   threat_level: number
   rage: number
+  fleet_strength: number
+  raid_ends_at: number | null
+  final_stage_cleared: number
+  completed: boolean
+  epitaph: string | null
   hospital_queue: HospitalEntry[]
   active_expeditions: ExpeditionEntry[]
   vehicles: VehicleView[]

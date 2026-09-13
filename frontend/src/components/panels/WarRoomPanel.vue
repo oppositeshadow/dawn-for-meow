@@ -14,6 +14,7 @@ const selectedType = ref('light_car')
 const selectedTarget = ref('WALMART')
 const pickedUnits = ref<number[]>([])
 const ambushUnits = ref<number[]>([])
+const assaultStage = ref(1)
 
 onMounted(() => {
   military.startPolling(5000)
@@ -223,7 +224,9 @@ const tacticalLabel: Record<string, string> = {
             欧米茄车队：{{ view?.convoy_ends_at ? `到港 ${remaining(view.convoy_ends_at)}` : '在采矿区装货' }}
           </span>
           <Badge v-if="view?.factory_frozen_until && view.factory_frozen_until > military.now" :text="`兵工厂停工 ${remaining(view.factory_frozen_until)}`" tone="warn" />
-          <span class="ml-auto text-[10px] text-terminal-dim">威胁 Lv.{{ view?.threat_level ?? 1 }} · rage {{ (view?.rage ?? 0).toFixed(0) }}</span>
+          <span class="ml-auto text-[10px] text-terminal-dim">
+            威胁 Lv.{{ view?.threat_level ?? 1 }} · 舰队 {{ (view?.fleet_strength ?? 0).toFixed(0) }} · rage {{ (view?.rage ?? 0).toFixed(0) }}
+          </span>
         </div>
         <div class="flex flex-wrap gap-2">
           <label v-for="vehicle in military.idleVehicles" :key="`ambush-${vehicle.unit_id}`" class="flex items-center gap-1 text-[11px]">
@@ -255,6 +258,34 @@ const tacticalLabel: Record<string, string> = {
             @click="military.launchMissile()"
           >
             点火发射
+          </button>
+        </div>
+
+        <!-- 欧米茄终局（模块 L） -->
+        <div class="flex flex-wrap items-center gap-2 border-t border-terminal-line/60 pt-2 text-[11px]">
+          <Badge v-if="view?.completed" text="🎬 已通关" tone="accent" />
+          <span class="text-terminal-dim">
+            掠夺突袭：{{ view?.raid_ends_at ? remaining(view.raid_ends_at) : '装填中' }}
+          </span>
+          <button
+            class="btn px-1.5 py-0"
+            :disabled="military.busy || ambushUnits.length === 0 || !view?.raid_ends_at"
+            @click="military.interceptRaid(ambushUnits); ambushUnits = []"
+          >
+            拦截掠夺
+          </button>
+          <span class="text-terminal-dim">决战进度 {{ view?.final_stage_cleared ?? 0 }}/3</span>
+          <select v-model.number="assaultStage" class="rounded border border-terminal-line bg-transparent px-1 py-0.5 text-[11px]">
+            <option v-for="stage in 3" :key="stage" :value="stage">
+              第 {{ stage }} 段（{{ ['星门突破战', '分区总督舰队', '戴森主脑突入'][stage - 1] }}）
+            </option>
+          </select>
+          <button
+            class="btn btn-primary px-1.5 py-0"
+            :disabled="military.busy || ambushUnits.length === 0 || view?.completed"
+            @click="military.finalAssault(assaultStage, ambushUnits)"
+          >
+            发动决战
           </button>
         </div>
       </div>

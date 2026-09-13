@@ -17,16 +17,18 @@ from app.core import balance as B
 from app.core.database import get_session
 from app.schemas.military import (
     AmbushConvoyRequest,
+    FinalAssaultRequest,
     ExpeditionCollectRequest,
     ExpeditionDispatchRequest,
     MilitaryEnvelope,
     MissileRequest,
+    RaidInterceptRequest,
     TacticalActionRequest,
     VehicleAssembleRequest,
     VehicleModifyRequest,
     VehicleRepairRequest,
 )
-from app.services import combat_service
+from app.services import boss_service, combat_service
 
 router = APIRouter(tags=["military"])
 
@@ -159,5 +161,27 @@ async def post_launch_missile(
 ) -> MilitaryEnvelope:
     data = await combat_service.launch_missile(
         session, slot_id=payload.slot, planet_id=payload.planet_id
+    )
+    return MilitaryEnvelope(code=200, data=data)
+
+
+@router.post("/military/intercept-raid", response_model=MilitaryEnvelope)
+async def post_intercept_raid(
+    payload: RaidInterceptRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    data = await boss_service.intercept_raid(
+        session, unit_ids=payload.unit_ids, slot_id=payload.slot, planet_id=payload.planet_id
+    )
+    return MilitaryEnvelope(code=200, data=data)
+
+
+@router.post("/military/final-assault", response_model=MilitaryEnvelope)
+async def post_final_assault(
+    payload: FinalAssaultRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MilitaryEnvelope:
+    data = await boss_service.final_assault(
+        session, stage=payload.stage, unit_ids=payload.unit_ids, slot_id=payload.slot, planet_id=payload.planet_id
     )
     return MilitaryEnvelope(code=200, data=data)

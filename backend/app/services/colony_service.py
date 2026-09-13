@@ -47,6 +47,7 @@ from app.services import tech_service
 from app.services import combat_service
 from app.services import garden_service
 from app.services import darknet_service
+from app.services import boss_service
 from app.services.game_init_service import create_new_game, now_timestamp
 
 logger = logging.getLogger("dawn_meow.colony")
@@ -435,6 +436,18 @@ async def settle_offline(
     if darknet_event["events"]:
         report.setdefault("darknet_events", []).extend(darknet_event["events"])
         for line in darknet_event["events"]:
+            report["notes"].append(line)
+    # 欧米茄后台演化与掠夺突袭（模块 L）：增兵 / 威胁升级 / 突袭到期惩罚
+    boss_event = await boss_service.advance_boss(
+        session,
+        slot_id=save.slot_id,
+        planet_id=planet_id,
+        seconds=float(max(0, delta_seconds)),
+        now=now,
+    )
+    if boss_event["events"]:
+        report.setdefault("boss_events", []).extend(boss_event["events"])
+        for line in boss_event["events"]:
             report["notes"].append(line)
     save.playtime_seconds += max(0, int(delta_seconds))
     await _accumulate_career_stats(

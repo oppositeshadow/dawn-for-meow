@@ -77,3 +77,20 @@ class MissileRequest(BaseModel):
 
     slot: int = Field(default=1, ge=1, le=3)
     planet_id: int = Field(default=0, ge=0, le=3)
+
+
+class RaidInterceptRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    slot: int = Field(default=1, ge=1, le=3)
+    planet_id: int = Field(default=0, ge=0, le=3)
+    unit_ids: list[int] = Field(min_length=1, max_length=8)
+
+
+class FinalAssaultRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    slot: int = Field(default=1, ge=1, le=3)
+    planet_id: int = Field(default=0, ge=0, le=3)
+    stage: int = Field(ge=1, le=3)
+    unit_ids: list[int] = Field(min_length=1, max_length=8)

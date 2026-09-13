@@ -474,6 +474,53 @@ MISSILE_ASSEMBLE_COST: dict[str, float] = {"alloys": 30.0, "chips": 10.0, "batte
 MISSILE_LAUNCH_RAGE_GAIN = 40.0          # 惊动欧米伽：发射后通缉热度 +40
 MISSILE_LAUNCH_INTEL_GAIN = 20.0         # 情报破译度 +20%（要塞结构被摸清）
 
+#: 欧米茄后台演化（§L1，编码落地提案 v1.14）：每 30 分钟一个周期增兵与扩张
+BOSS_TICK_SECONDS = 1800.0
+BOSS_FLEET_GAIN_PER_TICK = 25.0          # 每周期核心舰队 +25
+BOSS_THREAT_UP_EVERY_TICKS = 3           # 每 3 个周期威胁等级 +1（上限 10）
+BOSS_THREAT_MAX = 10
+
+#: 前哨掠夺突袭（§L2）：每 20~40 分钟一班，到期未拦截 ⇒ 资源损失
+RAID_INTERVAL_MIN_SECONDS = 1200.0
+RAID_INTERVAL_MAX_SECONDS = 2400.0
+RAID_RESOURCE_LOSS_RATIO = 0.15          # 未拦截：物理资源 −15% + 设施受损
+RAID_INTERCEPT_LOOT: dict[str, float] = {"alloys": 10.0, "chips": 6.0}
+RAID_REQUIRED_UNIT_TYPES: tuple[str, ...] = ("armored_car", "breaker_mech")
+RAID_ENEMY_UNITS: tuple[str, ...] = ("assault_drone", "scout_roomba", "suicide_spider")
+
+#: 终局决战三段（§L3）：星门突破战 → 分区总督舰队 → 戴森主脑
+FINAL_ASSAULT_STAGES: tuple[dict, ...] = (
+    {
+        "stage": 1,
+        "name": "星门突破战",
+        "enemies": ("assault_drone", "scout_roomba", "scout_roomba"),
+        "min_units": 2,
+        "cost": {"alloys": 20.0},
+    },
+    {
+        "stage": 2,
+        "name": "分区总督舰队决战",
+        "enemies": ("heavy_guard_mech", "assault_drone", "assault_drone"),
+        "min_units": 3,
+        "cost": {"alloys": 40.0, "battery": 4.0},
+    },
+    {
+        "stage": 3,
+        "name": "戴森主脑突入",
+        "enemies": ("heavy_guard_mech", "heavy_guard_mech"),
+        "min_units": 4,
+        "cost": {"alloys": 60.0, "battery": 6.0},
+    },
+)
+
+#: 通关碑文（LLM 场景 6，一生一次，允许超预算放行）本地兜底模板
+EPILOGUE_FALLBACK = (
+    "《猫猫文明星际史诗碑文》：它们从地下避难所的纸箱窝出发，用爪垫按下了人类留下的最高权限。"
+    "欧米伽格式化认主，星海重新亮起；碑文最后一行只有四个字——早安，猫猫。"
+)
+EPILOGUE_MIN_LENGTH = 40
+EPILOGUE_MAX_LENGTH = 400
+
 #: 乘员休养与维修（§9.6）
 VEHICLE_REPAIR_COST_RATIO = 0.50
 VEHICLE_REPAIR_BASE_SECONDS = 60.0

@@ -221,6 +221,31 @@ export const useMilitaryStore = defineStore('military', () => {
       },
     )
 
+  const interceptRaid = (unitIds: number[]) =>
+    run(
+      '拦截掠夺舰队',
+      () => request<{ data: Record<string, any> }>('/military/intercept-raid', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId, unit_ids: unitIds }),
+      }),
+      (result) => {
+        for (const line of result.data.events ?? []) colony.log(String(line), result.data.won ? 'info' : 'crit')
+      },
+    )
+
+  const finalAssault = (stage: number, unitIds: number[]) =>
+    run(
+      '终局决战',
+      () => request<{ data: Record<string, any> }>('/military/final-assault', {
+        method: 'POST',
+        body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId, stage, unit_ids: unitIds }),
+      }),
+      (result) => {
+        for (const line of result.data.events ?? []) colony.log(String(line), result.data.won ? 'warn' : 'crit')
+        for (const line of result.data.staff_roll ?? []) colony.log(String(line), 'info')
+      },
+    )
+
   function startPolling(intervalMs = 5000) {
     if (pollTimer !== null) return
     now.value = Math.floor(Date.now() / 1000)
@@ -256,6 +281,8 @@ export const useMilitaryStore = defineStore('military', () => {
     ambush,
     assembleMissile,
     launchMissile,
+    interceptRaid,
+    finalAssault,
     startPolling,
     stopPolling,
   }
