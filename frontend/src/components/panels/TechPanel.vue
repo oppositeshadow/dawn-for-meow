@@ -5,6 +5,7 @@ import { FlaskConical, Lock, CheckCircle2, Dices } from 'lucide-vue-next'
 import Badge from '@/components/common/Badge.vue'
 import GaugeBar from '@/components/common/GaugeBar.vue'
 import { useTechStore, type TechNodeView } from '@/stores/tech'
+import { formatDuration } from '@/utils/format'
 
 const tech = useTechStore()
 
@@ -38,6 +39,15 @@ function effectText(effects: Record<string, number | string | boolean>): string 
       return `${key} ${String(value)}`
     })
     .join('、')
+}
+
+// 预估耗时（用当前极客产出算）：把"还要 129600 秒"变成"还要 2.4 小时"
+function etaText(node: TechNodeView): string | null {
+  const rate = tech.tree?.research_points_per_sec ?? 0
+  if (rate <= 0) return null
+  const remaining = Math.max(0, node.display_cost - node.current_progress)
+  if (remaining <= 0) return null
+  return formatDuration(remaining / rate)
 }
 
 const tiers = computed(() =>
@@ -82,7 +92,7 @@ function statusText(node: TechNodeView): string {
         <span class="text-[11px] text-terminal-dim">
           {{ tech.tree.researching.current_progress.toFixed(0) }}/{{ tech.tree.researching.display_cost.toFixed(0) }}
           <template v-if="tech.tree.researching.eta_seconds !== null">
-            · 约 {{ Math.ceil(tech.tree.researching.eta_seconds) }}s
+            · 还需约 {{ formatDuration(tech.tree.researching.eta_seconds) }}
           </template>
           <template v-else>· 派极客猫上工才能推进</template>
         </span>
@@ -122,7 +132,11 @@ function statusText(node: TechNodeView): string {
               <Dices class="h-3 w-3" />
             </button>
           </div>
-          <p v-if="node.flavor_text" class="mt-1 text-[10px] text-terminal-dim">{{ node.flavor_text }}</p>
+            <p v-if="node.flavor_text" class="mt-1 text-[10px] text-terminal-dim">{{ node.flavor_text }}</p>
+            <!-- 用当前极客产出估算"点下去要等多久"，避免玩家在 18 小时的节点上盲选 -->
+            <p v-if="node.available && etaText(node)" class="mt-0.5 text-[10px] text-terminal-dim">
+              当前极客产出下约需 {{ etaText(node) }}
+            </p>
           <p v-if="Object.keys(node.active_effects).length" class="mt-0.5 text-[10px] text-terminal-accent">
             生效中：{{ effectText(node.active_effects) }}
           </p>
