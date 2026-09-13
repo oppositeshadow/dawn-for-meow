@@ -9,6 +9,8 @@ techs_planet0.json 的母星 19 节点以 LOCKED 状态写入 tech_records。
 
 from __future__ import annotations
 
+import copy
+
 import time
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -264,7 +266,9 @@ async def create_new_game(
             laser_turrets=0,
             cruise_missiles=0,
             decoy_count=0,
-            security_policy=dict(DEFAULT_SECURITY_POLICY),
+            # 深拷贝：`dict()` 是浅拷贝，嵌套的列表/子字典会被**所有新存档共享**——
+            # 谁往里 append，后续新档就会"继承"上一档的状态（真机曾表现为跨测试污染）
+            security_policy=copy.deepcopy(DEFAULT_SECURITY_POLICY),
             hospital_queue=[],
             active_expeditions=[],
         )
@@ -286,7 +290,7 @@ async def create_new_game(
             raid_ends_at=None,
             raid_target_planet=None,
             satellite_count=0,
-            bombardment_state=dict(DEFAULT_BOMBARDMENT_STATE),
+            bombardment_state=copy.deepcopy(DEFAULT_BOMBARDMENT_STATE),
         )
     )
 

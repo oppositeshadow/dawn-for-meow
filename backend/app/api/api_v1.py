@@ -2,7 +2,20 @@
 
 from fastapi import APIRouter
 
-from app.api.endpoints import colony, darknet, game, garden, military, minigame, planet, radio, save, stats, tech
+from app.api.endpoints import (
+    colony,
+    darknet,
+    doctrine,
+    game,
+    garden,
+    military,
+    minigame,
+    planet,
+    radio,
+    save,
+    stats,
+    tech,
+)
 
 api_router = APIRouter()
 api_router.include_router(colony.router)
@@ -16,5 +29,6 @@ api_router.include_router(planet.router)
 api_router.include_router(minigame.router)
 api_router.include_router(stats.router)
 api_router.include_router(save.router)
+api_router.include_router(doctrine.router)
 
 __all__ = ["api_router"]

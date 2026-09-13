@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import hashlib
+import copy
 from typing import Any
 
 from sqlalchemy import select
@@ -276,7 +277,8 @@ async def ensure_star_colony(
                 laser_turrets=0,
                 cruise_missiles=0,
                 decoy_count=0,
-                security_policy=dict(DEFAULT_SECURITY_POLICY),
+                # 深拷贝（同 game_init_service：浅拷贝会让嵌套列表/字典在多档之间共享）
+                security_policy=copy.deepcopy(DEFAULT_SECURITY_POLICY),
                 hospital_queue=[],
                 active_expeditions=[],
             )

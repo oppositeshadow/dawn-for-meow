@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "note": "星系法典政令（《数值平衡表》§15.2）：消耗文明凝聚力点亮，全星系生效。effects 里的键是唯一出处，代码只认白名单内的键。",
+  "doctrines": [
+    {
+      "doctrine_id": "sunbath_3pm",
+      "name": "下午三点晒太阳协议",
+      "cost": 200,
+      "effect_text": "全员生产效率 +20%",
+      "effects": { "production_multiplier": 0.2 }
+    },
+    {
+      "doctrine_id": "red_dot_air_defense",
+      "name": "全星系红点防空标准",
+      "cost": 300,
+      "effect_text": "防空战力 +25%",
+      "effects": { "air_defense": 0.25 }
+    },
+    {
+      "doctrine_id": "nap_silence_order",
+      "name": "午睡静默令",
+      "cost": 350,
+      "effect_text": "警戒度增速 −20%",
+      "effects": { "suspicion_growth": -0.2 }
+    },
+    {
+      "doctrine_id": "can_diplomacy",
+      "name": "罐罐外交",
+      "cost": 400,
+      "effect_text": "黑市手续费 −20%",
+      "effects": { "black_market_fee": -0.2 }
+    },
+    {
+      "doctrine_id": "tail_balance_act",
+      "name": "尾巴平衡法案",
+      "cost": 450,
+      "effect_text": "载具装甲 +10%",
+      "effects": { "fleet_armor": 0.1 }
+    },
+    {
+      "doctrine_id": "planet_greening_act",
+      "name": "行星绿化法案",
+      "cost": 500,
+      "effect_text": "各星球承载力 K +10%",
+      "effects": { "cat_capacity": 0.1 }
+    },
+    {
+      "doctrine_id": "interstellar_broadcast",
+      "name": "星际广播法案",
+      "cost": 600,
+      "effect_text": "情报破译速度 +10%",
+      "effects": { "intel_speed": 0.1 }
+    },
+    {
+      "doctrine_id": "permanent_purr_field",
+      "name": "永久呼噜场",
+      "cost": 800,
+      "effect_text": "全星系士气 +10%",
+      "effects": { "morale": 0.1 }
+    }
+  ]
+}
