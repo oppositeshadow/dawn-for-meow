@@ -114,9 +114,38 @@ const starTraitText = computed(() => {
 const starSteps = computed(() => {
   const facilities = colony.facilities
   const jobs = colony.workstations
+  const traits = starTraits.value
+  const farm = {
+    label: '造水培农田（10 废铁）',
+    hint: traits && traits.catnip_multiplier < 1 ? `本地产粮 ×${traits.catnip_multiplier}，先解决吃饭` : undefined,
+    done: (facilities.farm_plot ?? 0) > 0,
+    action: '建造水培农田',
+    run: () => void colony.build('farm_plot'),
+  }
+  const farmer = {
+    label: '派 1 只农夫猫上工',
+    hint: undefined,
+    done: (jobs.farmer ?? 0) > 0,
+    action: '指派农夫',
+    run: () => void colony.dispatch('farmer', 1),
+  }
+  const station = {
+    label: '造废品解体操作台（8 废铁）',
+    hint:
+      traits && (traits.output_bonus.scrap > 1 || traits.output_bonus.chips > 1)
+        ? `本地废铁 ×${traits.output_bonus.scrap}、芯片 ×${traits.output_bonus.chips}，先铺产出`
+        : undefined,
+    done: (facilities.scavenge_station ?? 0) > 0,
+    action: '建造操作台',
+    run: () => void colony.build('scavenge_station'),
+  }
+  // 推荐顺序按星球性格走：挖矿有加成 ⇒ 先铺产出；否则按母星那套先温饱后产出
+  const mineFirst = traits ? traits.output_bonus.scrap > 1 || traits.output_bonus.chips > 1 : false
+  const afterHousing = mineFirst ? [station, farm, farmer] : [farm, farmer, station]
   return [
     {
       label: '把猫口运过来',
+      hint: undefined,
       done: colony.population.total > 0,
       action: '去星区星图运猫',
       run: () => {
@@ -125,28 +154,12 @@ const starSteps = computed(() => {
     },
     {
       label: '盖第一座纸箱窝（5 废铁）',
+      hint: undefined,
       done: (facilities.housing_box ?? 0) > 0,
       action: '建造纸箱窝',
       run: () => void colony.build('housing_box'),
     },
-    {
-      label: '造水培农田（10 废铁）',
-      done: (facilities.farm_plot ?? 0) > 0,
-      action: '建造水培农田',
-      run: () => void colony.build('farm_plot'),
-    },
-    {
-      label: '派 1 只农夫猫上工',
-      done: (jobs.farmer ?? 0) > 0,
-      action: '指派农夫',
-      run: () => void colony.dispatch('farmer', 1),
-    },
-    {
-      label: '造废品解体操作台（8 废铁）',
-      done: (facilities.scavenge_station ?? 0) > 0,
-      action: '建造操作台',
-      run: () => void colony.build('scavenge_station'),
-    },
+    ...afterHousing,
   ]
 })
 
@@ -260,6 +273,7 @@ onMounted(bootstrap)
               <span :class="step.done ? 'text-terminal-dim line-through' : 'text-terminal-text'">
                 {{ step.label }}
               </span>
+              <span v-if="step.hint && !step.done" class="text-[10px] text-terminal-warn/80">{{ step.hint }}</span>
             </li>
           </ul>
           <button
