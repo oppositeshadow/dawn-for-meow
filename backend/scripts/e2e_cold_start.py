@@ -66,7 +66,7 @@ def call(method: str, path: str, body: dict | None = None, query: dict | None = 
 
 
 def travel(seconds: int) -> None:
-    """把测试槽位的时间锚点往回拨，等价于"离开了这么久"。"""
+    """把测试槽位的时间锚点往回拨并立刻读一次档（读档才会跑离线结算）。"""
     settings = get_settings()
     conn = pymysql.connect(
         host=settings.db_host, port=settings.db_port, user=settings.db_user,
@@ -79,6 +79,7 @@ def travel(seconds: int) -> None:
             (seconds, SLOT),
         )
     conn.close()
+    call("GET", "/colony/state", query={"slot": SLOT})
 
 
 def step(label: str, result: dict, expect: str | None = None) -> None:
@@ -142,7 +143,71 @@ def main() -> None:
     )
     print(f"   工位：{state['workstations']}")
     print("== 开局闭环演练完成：手点 → 纸箱窝 → 第一只猫 → 农田 → 农夫 → 操作台 → 拾荒猫 ==")
+    if "--stage" in sys.argv and "mid" in sys.argv:
+        mid_stage()
     _ = time
+
+
+def mid_stage() -> None:
+    """中期演练：供电 → 极客猫 → 科技 → 熔炼 → 合金（用时间旅行压缩等待）。
+
+    真机走查发现的**依赖链**（下一步要按这个顺序补全脚本）：
+    1. 图灵终端要**芯片**（拾荒猫 0.01/s ⇒ 冷启动后先挂机约 15 分钟）；
+    2. 图灵终端 −6 kW，没电就强制断电、科研归 0（§7.1）⇒ 必须先解决供电；
+    3. 太阳能板被 T1【瓦楞纸结构力学】门槛挡住 ⇒ 早期只能走**猫力滚轮 + 踩轮猫**（开荒豁免名单内，+5 kW/座）；
+    4. 5 kW < 6 kW ⇒ 需要**两座滚轮**（或一座滚轮 + 科研完的太阳能板）；
+    5. 踩轮猫会占掉空闲猫口 ⇒ 派极客猫之前要再扩一次窝。
+    """
+    print("\n== 中期演练：科研 → 冶炼 ==")
+    # 图灵终端要芯片，而拾荒猫产芯片只有 0.01/s ⇒ 先挂机攒一会儿（这是设计内的资源门槛）
+    travel(900)
+    # §7.1：净电力为负时图灵终端强制断电、科研归 0；而太阳能被 T1 科技门槛挡住，
+    # 所以早期只能走【猫力滚轮 + 踩轮猫】（开荒豁免，+5 kW/座，两座才够抵消终端 −6 kW）
+    step("造猫力滚轮 ×2", call("POST", "/facilities/build",
+                           body={"slot": SLOT, "facility_id": "power_wheel", "count": 2}))
+    step("派 1 只踩轮猫供电", call("POST", "/colony/dispatch",
+                            body={"slot": SLOT, "job_id": "power_runner", "delta": 1}))
+    step("造图灵终端机房", call("POST", "/facilities/build",
+                            body={"slot": SLOT, "facility_id": "turing_terminal"}))
+    step("派 2 只极客猫", call("POST", "/colony/dispatch",
+                           body={"slot": SLOT, "job_id": "geek", "delta": 2})) if False else None
+    # 猫口只有 2 只（1 农夫 + 1 拾荒）⇒ 先造窝扩容再养猫
+    for _ in range(20):
+        call("POST", "/colony/scavenge", query={"slot": SLOT})
+    call("POST", "/facilities/build", body={"slot": SLOT, "facility_id": "housing_box"})
+    travel(900)  # K=3 ⇒ 长到 3 只
+    state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
+    print(f"   扩容后猫口 {state['population']['total']}（K={state['population']['max_cap']}）")
+    step("派 1 只极客猫", call("POST", "/colony/dispatch",
+                           body={"slot": SLOT, "job_id": "geek", "delta": 1}))
+
+    travel(3600)  # 1 小时科研
+    state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
+    print(f"   科研产出 {state['population'].get('geek_jobs', state['workstations']['geek'])} 只极客猫在岗")
+
+    for tech_id in ("tech_cardboard_mechanics", "tech_hydroponics_basics",
+                    "tech_appliance_teardown", "tech_night_stealth_scavenging",
+                    "tech_acoustic_layer", "tech_induction_furnace"):
+        result = call("POST", "/tech/research", body={"slot": SLOT, "tech_id": tech_id})
+        if result.get("code") != 200:
+            print(f"   ⏳ {tech_id}: {result.get('message')}")
+            travel(3600)
+            result = call("POST", "/tech/research", body={"slot": SLOT, "tech_id": tech_id})
+        step(f"研发 {tech_id}", result)
+        travel(3600)
+
+    step("造高频感应电炉", call("POST", "/facilities/build",
+                           body={"slot": SLOT, "facility_id": "induction_furnace"}))
+    step("造太阳能板 ×4", call("POST", "/facilities/build",
+                          body={"slot": SLOT, "facility_id": "solar_panel", "count": 4}))
+    for _ in range(20):
+        call("POST", "/colony/scavenge", query={"slot": SLOT})
+    travel(600)
+    state = call("GET", "/colony/state", query={"slot": SLOT})["data"]
+    report = state["offline_report"]
+    print(f"   熔炼结算：{report.get('smelted_batches', 0)} 炉次 → 合金 +{report.get('gained_alloys', 0)}"
+          f"（当前合金 {state['resources']['alloys']}）")
+    print("== 中期演练完成：极客猫 → 科技 → 熔炼 → 合金 ==")
 
 
 if __name__ == "__main__":
