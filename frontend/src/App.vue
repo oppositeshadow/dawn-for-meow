@@ -14,6 +14,7 @@ import DarknetPanel from '@/components/panels/DarknetPanel.vue'
 import MinigamePanel from '@/components/panels/MinigamePanel.vue'
 import StatsPanel from '@/components/panels/StatsPanel.vue'
 import SavePanel from '@/components/panels/SavePanel.vue'
+import PlanetPanel from '@/components/panels/PlanetPanel.vue'
 import ProductionPanel from '@/components/panels/ProductionPanel.vue'
 import RadioTicker from '@/components/radio/RadioTicker.vue'
 import { useAutoSave } from '@/composables/useAutoSave'
@@ -29,7 +30,7 @@ useGameLoop()
 useAutoSave()
 
 const offlineOpen = ref(false)
-const leftTab = ref<'facilities' | 'tech' | 'garden' | 'darknet' | 'minigame' | 'stats' | 'save'>(
+const leftTab = ref<'facilities' | 'tech' | 'garden' | 'darknet' | 'minigame' | 'stats' | 'planet' | 'save'>(
   'facilities',
 )
 const leftTabs = [
@@ -39,6 +40,7 @@ const leftTabs = [
   { key: 'darknet' as const, label: '智械深网' },
   { key: 'minigame' as const, label: '小游戏' },
   { key: 'stats' as const, label: '生涯成就' },
+  { key: 'planet' as const, label: '星区星图' },
   { key: 'save' as const, label: '存档槽位' },
 ]
 
@@ -128,6 +130,7 @@ onMounted(bootstrap)
         <DarknetPanel v-else-if="leftTab === 'darknet'" class="min-h-0 flex-1" />
         <MinigamePanel v-else-if="leftTab === 'minigame'" class="min-h-0 flex-1" />
         <StatsPanel v-else-if="leftTab === 'stats'" class="min-h-0 flex-1" />
+        <PlanetPanel v-else-if="leftTab === 'planet'" class="min-h-0 flex-1" />
         <SavePanel v-else class="min-h-0 flex-1" />
       </div>
 
