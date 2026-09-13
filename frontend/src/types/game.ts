@@ -82,6 +82,9 @@ export interface OfflineReport {
   overflowed_resources: string[]
   suspicion_delta: number
   charged_kwh: number
+  /** 熔炼（《数值平衡表》§3.5）：本段离线炼了几炉、产出多少合金 */
+  smelted_batches: number
+  gained_alloys: number
   clock_anomaly: boolean
   birth_progress: number
   notes: string[]

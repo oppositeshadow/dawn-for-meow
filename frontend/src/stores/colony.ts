@@ -191,8 +191,11 @@ export const useColonyStore = defineStore('colony', () => {
       if (!options.silent) {
         const report = envelope.data.offline_report
         if (report && report.elapsed_seconds > 0) {
+          const smelt = (report.gained_alloys ?? 0) > 0
+            ? `、合金 ${report.gained_alloys.toFixed(1)}（${report.smelted_batches} 炉次）`
+            : ''
           log(
-            `读档完成：离线 ${Math.round(report.elapsed_seconds)} 秒，猫薄荷 ${report.gained_catnip.toFixed(1)}、废铁 ${report.gained_scrap.toFixed(1)}、新猫 ${report.gained_cats}`,
+            `读档完成：离线 ${Math.round(report.elapsed_seconds)} 秒，猫薄荷 ${report.gained_catnip.toFixed(1)}、废铁 ${report.gained_scrap.toFixed(1)}、新猫 ${report.gained_cats}${smelt}`,
           )
           for (const note of report.notes) log(note, 'warn')
         }

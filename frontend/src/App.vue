@@ -87,6 +87,8 @@ const offlineSummary = computed(() => {
     catnip: report.gained_catnip,
     scrap: report.gained_scrap,
     cats: report.gained_cats,
+    alloys: report.gained_alloys ?? 0,
+    batches: report.smelted_batches ?? 0,
     starved: report.is_starved,
     capped: report.is_capped,
     overflowed: report.overflowed_resources,
@@ -218,6 +220,10 @@ onMounted(bootstrap)
       <ul class="space-y-1">
         <li>猫薄荷：{{ offlineSummary.catnip.toFixed(1) }}</li>
         <li>机械废铁：{{ offlineSummary.scrap.toFixed(1) }}</li>
+        <li v-if="offlineSummary.batches > 0">
+          航空钛合金：{{ offlineSummary.alloys.toFixed(1) }}
+          <span class="text-terminal-dim">（电炉 {{ offlineSummary.batches }} 炉次）</span>
+        </li>
         <li>新出生猫口：{{ offlineSummary.cats }}</li>
       </ul>
       <p v-if="offlineSummary.starved" class="text-terminal-crit">
