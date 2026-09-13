@@ -275,12 +275,19 @@ def acoustic_noise_multiplier(level: int) -> float:
 
 def cat_capacity(facility_levels: Mapping[str, int]) -> int:
     """承载力 K = 纸箱窝 ×1 + 猫爬架公寓 ×10（+ 后续科技/星球加成）。"""
+    return cat_capacity_on(facility_levels, HOME_PLANET_ID)
+
+
+def cat_capacity_on(facility_levels: Mapping[str, int], planet_id: int) -> int:
+    """带星球系数的承载力（《数值平衡表》§15.3）：熔岩星 ×0.8 / 冰卫星 ×0.9 / 小行星带 ×1.2。"""
     boxes = int(facility_levels.get("housing_box", 0))
     condos = int(facility_levels.get("cat_condo", 0))
-    return max(
+    base = max(
         MAX_CAT_CAPACITY_FLOOR,
         boxes * HOUSING_BOX_CAPACITY + condos * CAT_CONDO_CAPACITY,
     )
+    multiplier = STAR_PLANET_CAPACITY_MULTIPLIER.get(int(planet_id), 1.0)
+    return max(MAX_CAT_CAPACITY_FLOOR, int(base * multiplier))
 
 
 def breeding_rate_multiplier(facility_levels: Mapping[str, int]) -> float:
@@ -349,6 +356,8 @@ STAR_ROUTE_RAID_CHANCE = 0.08
 STAR_ROUTE_RAID_RAGE_THRESHOLD = 60
 #: 被劫掠的后果：**延误**而不是死猫（对齐"绝无死猫"原则）
 STAR_ROUTE_RAID_DELAY_SECONDS = 600.0
+#: 三颗星球各自的承载力系数（§15.3：熔岩星难住人 / 冰卫星中庸 / 星带能塞猫）
+STAR_PLANET_CAPACITY_MULTIPLIER: dict[int, float] = {1: 0.8, 2: 0.9, 3: 1.2}
 #: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
 STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
 STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)
