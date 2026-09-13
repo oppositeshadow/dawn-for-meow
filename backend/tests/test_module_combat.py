@@ -63,3 +63,17 @@ def test_full_skirmish_reads_module_snapshot() -> None:
     assert armed["rounds"] <= plain["rounds"]  # 对盾更强 ⇒ 不会打得更久
     assert "modules" in armed["attackers"][0]
     _ = enemy
+
+
+def test_drill_module_raises_shred_without_nerfing_others() -> None:
+    """破甲系数取较大值：钻头车 45%，没装的车仍是基础 30%（谁都不被削弱）。"""
+    armed = apply_module_effects(_car(), ["drill_mk2"])
+    assert armed["armor_shred"] == B.ARMOR_SHRED_RATIO_DRILL > B.ARMOR_SHRED_RATIO
+
+    # 同一个高装甲目标：装钻头的一击能多削一点装甲上限
+    target_plain = {"name": "靶", "shield": 0.0, "armor": 400.0, "armor_max": 400.0, "hull": 1000.0}
+    target_drill = dict(target_plain)
+    resolve_attack(50.0, "EXPLOSIVE", target_plain)
+    resolve_attack(50.0, "EXPLOSIVE", target_drill, attacker_armor_shred=B.ARMOR_SHRED_RATIO_DRILL)
+    assert target_drill["armor_max"] < target_plain["armor_max"]
+    assert target_plain["armor_max"] < 400.0  # 基础削甲仍然生效（没装钻头的车也没被削弱）

@@ -39,6 +39,7 @@ def resolve_attack(
     damage_type: str,
     target: dict[str, float],
     attacker_vs_shield: float | None = None,
+    attacker_armor_shred: float | None = None,
 ) -> tuple[dict[str, float], float, bool]:
     """单次攻击结算：返回（更新后的 target、对结构的实际伤害、是否触发弹射）。"""
     remaining = max(0.0, float(attacker_atk))
@@ -66,7 +67,11 @@ def resolve_attack(
             armor_reduction = min(B.ARMOR_REDUCTION_MAX, armor / B.ARMOR_REDUCTION_DIVISOR)
             real_damage_to_hull = remaining * (1.0 - armor_reduction)
             if damage_type in ("KINETIC", "EXPLOSIVE"):
-                shred = real_damage_to_hull * B.ARMOR_SHRED_RATIO
+                # 破甲系数：取"全局基础"与"该车模块"的较大值（钻头模块提高它，不削弱别人）
+                shred_ratio = B.ARMOR_SHRED_RATIO
+                if attacker_armor_shred:
+                    shred_ratio = max(shred_ratio, float(attacker_armor_shred))
+                shred = real_damage_to_hull * shred_ratio
                 target["armor"] = max(0.0, armor - shred)
                 if "armor_max" in target:
                     target["armor_max"] = max(0.0, float(target["armor_max"]) - shred)
@@ -126,6 +131,11 @@ def apply_module_effects(unit: dict[str, Any], modules: list[str] | None) -> dic
             unit["armor_max"] = round(float(unit["armor_max"]) * (1.0 + armor_bonus), 4)
     if vs_shield:
         unit["vs_shield"] = vs_shield
+    armor_shred = 0.0
+    for module_id in installed:
+        armor_shred = max(armor_shred, float(B.VEHICLE_MODULES[module_id].get("effects", {}).get("armor_shred", 0.0)))
+    if armor_shred:
+        unit["armor_shred"] = armor_shred
     unit["modules"] = installed
     return unit
 
@@ -173,6 +183,7 @@ def resolve_skirmish(
                     str(attacker.get("damage_type", "KINETIC")),
                     target,
                     attacker_vs_shield=attacker.get("vs_shield"),
+                    attacker_armor_shred=attacker.get("armor_shred"),
                 )
                 if damage > 0:
                     log.append(

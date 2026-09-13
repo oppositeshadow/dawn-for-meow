@@ -434,6 +434,8 @@ SHIELD_DAMAGE_MULTIPLIER: dict[str, float] = {"LASER": 1.8, "KINETIC": 0.8, "EXP
 ARMOR_REDUCTION_DIVISOR = 400.0                 # 减伤率 = min(75%, 装甲 ÷ 400)
 ARMOR_REDUCTION_MAX = 0.75
 ARMOR_SHRED_RATIO = 0.30                        # 破甲：削蚀量 = 实际伤害 × 30%
+#: 装了【热融破拆钻】的车把破甲系数提到 45%（取较大值，不削弱没装的车）
+ARMOR_SHRED_RATIO_DRILL = 0.45
 EJECTION_ALWAYS = True                          # 结构归零 100% 弹射免死
 
 #: 车型锚点（术语表：车型是图纸 / 载具是实例 / 编制是数量）
@@ -478,7 +480,7 @@ VEHICLE_MODULES: dict[str, dict] = {
         "slots": 1,
         "cost": {"alloys": 25.0, "chips": 8.0},
         "unlock_tech": "tech_heavy_breaker_exoskeleton",
-        "effects": {"armor_shred": ARMOR_SHRED_RATIO, "dps_bonus": 0.15},
+        "effects": {"armor_shred": ARMOR_SHRED_RATIO_DRILL, "dps_bonus": 0.15},
     },
     "armor_plate": {
         "name": "附加装甲板",
