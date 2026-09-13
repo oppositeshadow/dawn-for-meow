@@ -142,3 +142,15 @@ async def test_garden_lab_works_on_star_planet(client, session) -> None:
     )
     assert planted.status_code == 200, planted.text
     assert planted.json()["data"]["plant_name"]
+
+
+async def test_launch_silo_is_home_only(client, session) -> None:
+    """发射井是母星巨构（§5）：外星球不许建，避免"每颗星各升空一次"。"""
+    await _boot(client)
+    await _unlock(session, 1)
+    await client.post(SWITCH_URL, json={"slot": 1, "planet_id": 1})  # 建行
+    resp = await client.post(
+        "/api/v1/facilities/build", json={"slot": 1, "planet_id": 1, "facility_id": "launch_silo"}
+    )
+    assert resp.status_code == 400
+    assert resp.json()["message"] == "LAUNCH_SILO_HOME_ONLY"

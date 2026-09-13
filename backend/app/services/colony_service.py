@@ -961,6 +961,13 @@ async def build_facility(
 
     if facility_id not in B.FACILITY_IDS:
         raise BadRequest("BAD_REQUEST", f"未知设施 facility_id={facility_id}")
+    # 发射井是**母星巨构**（§5：从地下避难所造火箭、地表破晓）：外星球没有对应的地壳厚度与
+    # 工程配套，若允许随地建会变成"每个星球各升空一次"的怪异状态（半截链路审计 v1.40 收口）。
+    if facility_id == "launch_silo" and target_planet != B.HOME_PLANET_ID:
+        raise BadRequest(
+            "LAUNCH_SILO_HOME_ONLY",
+            "火箭垂直发射井是母星巨构；外星球请专注产能与物流，升空只能在母星完成",
+        )
     if not B.facility_is_buildable(facility_id):
         raise BadRequest(
             "BAD_REQUEST",
