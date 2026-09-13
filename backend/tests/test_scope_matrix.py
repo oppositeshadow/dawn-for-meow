@@ -105,6 +105,34 @@ class TestPerPlanet:
         assert star["resources"]["scrap"] == 77.0
         assert home["resources"]["scrap"] != 77.0  # 母星不受影响
 
+    async def test_declared_build_rows_match_reality(self, client, session):
+        """建行清单是**声明式**的：声明了哪几张表，就必须真的都建出该星球的行。"""
+        from app.services import planet_service
+
+        await _boot(client)
+        await _unlock_and_switch(client, session, 1)
+        await session.rollback()
+        for table_name in planet_service.STAR_COLONY_TABLES:
+            model = next(
+                item
+                for item in (
+                    ColonyState,
+                    LaborBucket,
+                    FacilityState,
+                    MilitaryState,
+                    GardenState,
+                )
+                if item.__tablename__ == table_name
+            )
+            rows = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(model)
+                    .where(model.slot_id == 1, model.planet_id == 1)
+                )
+            ).scalar_one()
+            assert int(rows) > 0, f"{table_name} 声明在建行清单里，却没有该星球的行"
+
 
 class TestSlotScoped:
     """存档级机制：开分基地绝不能复制出第二份（否则深网行情/终局进度会分裂）。"""

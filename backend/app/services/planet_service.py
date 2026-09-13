@@ -205,6 +205,17 @@ SYSTEM_PROMPT = (
     "语气冷硬、有科幻质感，不要出现现实地名与品牌。只输出 JSON。"
 )
 
+#: 外星球建行时必须齐活的行（《代码结构稿》§2.5 / §7 作用域矩阵的"每星球独立"部分）。
+#: 声明在这里，由 `tests/test_scope_matrix.py` 断言"声明 == 实际建出的行"——
+#: 以后往建行流程里加表却忘了同步这张清单，测试会直接红（真机曾因为只建 3 张表而读档 404）。
+STAR_COLONY_TABLES: tuple[str, ...] = (
+    "colony_state",
+    "labor_buckets",
+    "facility_state",
+    "military_state",
+    "garden_state",
+)
+
 
 async def ensure_star_colony(
     session: AsyncSession, slot_id: int, planet_id: int, *, now: int | None = None
@@ -296,6 +307,7 @@ async def ensure_star_colony(
         "created_at": stamped,
         "labor_rows": len(labor_rows),
         "facility_rows": len(facility_rows),
+        "tables": list(STAR_COLONY_TABLES),
     }
 
 
