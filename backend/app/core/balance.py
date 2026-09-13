@@ -521,6 +521,25 @@ EPILOGUE_FALLBACK = (
 EPILOGUE_MIN_LENGTH = 40
 EPILOGUE_MAX_LENGTH = 400
 
+#: 成就徽章目录（metric 由 stats_service 从各表聚合；加徽章只改这里）
+ACHIEVEMENTS: tuple[dict, ...] = (
+    {"achievement_id": "cardboard_fanatic", "name": "瓦楞纸发烧友", "metric": "housing_box", "target": 10, "desc": "纸箱窝堆到 10 座"},
+    {"achievement_id": "cat_herder", "name": "猫口大户", "metric": "cats_total", "target": 20, "desc": "猫口达到 20 只"},
+    {"achievement_id": "purr_master", "name": "呼噜协会", "metric": "cats_born", "target": 15, "desc": "累计诞生 15 只猫"},
+    {"achievement_id": "scrap_king", "name": "废铁大王", "metric": "total_scrap", "target": 5000, "desc": "累计产出 5000 废铁"},
+    {"achievement_id": "salt_mine", "name": "薄荷农场", "metric": "total_catnip", "target": 5000, "desc": "累计采摘 5000 猫薄荷"},
+    {"achievement_id": "chip_hoarder", "name": "芯片收藏家", "metric": "total_chips", "target": 200, "desc": "累计获得 200 芯片"},
+    {"achievement_id": "stealth_master", "name": "潜行大师", "metric": "tech_unlocked", "target": 10, "desc": "解锁 10 个科技节点"},
+    {"achievement_id": "wall_street_cat", "name": "华尔街之猫", "metric": "best_short_profit", "target": 500, "desc": "单笔做空收益 500 算力币"},
+    {"achievement_id": "smuggler", "name": "幽灵搬运工", "metric": "smuggling_volume", "target": 1000, "desc": "走私流水 1000 算力币"},
+    {"achievement_id": "expedition_veteran", "name": "废墟老手", "metric": "expeditions_completed", "target": 10, "desc": "完成 10 次远征"},
+    {"achievement_id": "bombardment_survivor", "name": "浴火重生", "metric": "bombardment_survived", "target": 1, "desc": "经历一次轨道轰炸并重建"},
+    {"achievement_id": "botanist", "name": "异星园丁", "metric": "garden_codex", "target": 7, "desc": "解锁 7 种猫草母本"},
+    {"achievement_id": "codebreaker", "name": "译码专家", "metric": "cipher_best", "target": 1, "desc": "一次就破开当日密电"},
+    {"achievement_id": "prospector", "name": "矿脉猎人", "metric": "vein_found", "target": 12, "desc": "单盘找齐 12 处矿脉"},
+    {"achievement_id": "omega_slayer", "name": "破晓引路人", "metric": "override_key", "target": 1, "desc": "按下最高管理员覆写密码，通关"},
+)
+
 #: 乘员休养与维修（§9.6）
 VEHICLE_REPAIR_COST_RATIO = 0.50
 VEHICLE_REPAIR_BASE_SECONDS = 60.0
