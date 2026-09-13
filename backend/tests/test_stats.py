@@ -56,7 +56,10 @@ async def test_career_panel_baseline(client) -> None:
     assert body["code"] == 200
     data = body["data"]
     assert data["achievements_total"] == len(B.ACHIEVEMENTS)
-    assert data["achievements_unlocked"] == 0
+    # 万一失败，直接把"谁被点亮了"打出来（曾出现过一次无法复现的 1 != 0）
+    badges = (await client.get(f"{STATS_URL}/achievements")).json()["data"]["achievements"]
+    unlocked = [item["achievement_id"] for item in badges if item["unlocked"]]
+    assert data["achievements_unlocked"] == 0, f"新开局不该有已点亮徽章，实际：{unlocked}"
     assert data["completed"] is False
     assert data["playtime_seconds"] == 0
     assert data["playtime_hours"] == 0.0
