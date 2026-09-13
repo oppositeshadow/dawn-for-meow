@@ -215,6 +215,98 @@ async def assemble_vehicle(
     return {"vehicle": vehicle_view(unit), "cost_paid": dict(spec["cost"]), "crew_locked": crew_needed}
 
 
+async def equip_module(
+    session: AsyncSession,
+    unit_id: int,
+    module_id: str,
+    *,
+    slot_id: int = 1,
+    planet_id: int = 0,
+) -> dict[str, Any]:
+    """给一辆车装模块（《数值平衡表》§9.10）：校验科技门槛、槽位与材料。"""
+    from app.models import TechRecord
+    from app.models.tech import TechStatus
+
+    spec = B.VEHICLE_MODULES.get(module_id)
+    if spec is None:
+        raise BadRequest("BAD_REQUEST", f"未知模块 module_id={module_id}")
+    unit = await session.get(VehicleUnit, unit_id)
+    if unit is None or unit.slot_id != slot_id or unit.status == VehicleStatus.SCRAPPED:
+        raise NotFound("VEHICLE_NOT_FOUND", f"载具 {unit_id} 不存在")
+    if unit.status != VehicleStatus.IDLE:
+        raise Conflict("VEHICLE_BUSY", f"载具当前状态为 {unit.status.value}，无法改装")
+
+    record = await session.get(TechRecord, (slot_id, planet_id, spec["unlock_tech"]))
+    if record is None or record.status != TechStatus.UNLOCKED:
+        name = record.tech_name if record else spec["unlock_tech"]
+        raise BadRequest("TECH_LOCKED", f"【{spec['name']}】需要先解锁科技【{name}】")
+
+    modules = list(unit.modules or [])
+    if module_id in modules:
+        raise BadRequest("MODULE_ALREADY_EQUIPPED", f"该车已经装了【{spec['name']}】")
+    used = sum(int(B.VEHICLE_MODULES[item]["slots"]) for item in modules if item in B.VEHICLE_MODULES)
+    if used + int(spec["slots"]) > B.vehicle_module_slots(unit.unit_type):
+        raise BadRequest(
+            "VEHICLE_MODULE_SLOTS_FULL",
+            f"【{B.VEHICLE_TYPES[unit.unit_type]['name']}】模块槽只有 {B.vehicle_module_slots(unit.unit_type)} 个，已占用 {used}",
+        )
+
+    colony = await session.get(ColonyState, (slot_id, planet_id))
+    if colony is None:
+        raise NotFound("COLONY_STATE_NOT_FOUND", f"槽位 {slot_id} 星球 {planet_id} 无基地状态")
+    for resource, amount in spec["cost"].items():
+        if float(getattr(colony, resource)) < float(amount):
+            raise InsufficientResource(
+                detail=f"装配【{spec['name']}】需要 {amount:g} {B.RESOURCE_LABELS.get(resource, resource)}，"
+                f"当前只有 {float(getattr(colony, resource)):g}"
+            )
+    for resource, amount in spec["cost"].items():
+        setattr(colony, resource, round(float(getattr(colony, resource)) - float(amount), 2))
+    modules.append(module_id)
+    unit.modules = modules  # JSON 列必须整条替换
+    await session.flush()
+    logger.info("装配模块：slot=%s unit=%s module=%s", slot_id, unit_id, module_id)
+    return {
+        "unit_id": unit_id,
+        "module_id": module_id,
+        "modules": modules,
+        "slots_used": used + int(spec["slots"]),
+        "slots_total": B.vehicle_module_slots(unit.unit_type),
+        "cost_paid": dict(spec["cost"]),
+    }
+
+
+async def unequip_module(
+    session: AsyncSession,
+    unit_id: int,
+    module_id: str,
+    *,
+    slot_id: int = 1,
+    planet_id: int = 0,
+) -> dict[str, Any]:
+    """拆下模块并返还 50% 材料（与退役拆解同口径，鼓励试配装）。"""
+    unit = await session.get(VehicleUnit, unit_id)
+    if unit is None or unit.slot_id != slot_id or unit.status == VehicleStatus.SCRAPPED:
+        raise NotFound("VEHICLE_NOT_FOUND", f"载具 {unit_id} 不存在")
+    modules = list(unit.modules or [])
+    if module_id not in modules:
+        raise BadRequest("MODULE_NOT_EQUIPPED", f"该车没有装 {module_id}")
+    spec = B.VEHICLE_MODULES.get(module_id, {"name": module_id, "cost": {}})
+    colony = await session.get(ColonyState, (slot_id, planet_id))
+    refund: dict[str, float] = {}
+    if colony is not None:
+        for resource, amount in (spec.get("cost") or {}).items():
+            back = round(float(amount) * B.VEHICLE_MODULE_REFUND_RATIO, 2)
+            cap = float(getattr(colony, f"{resource}_max", back))
+            setattr(colony, resource, round(min(cap, float(getattr(colony, resource)) + back), 2))
+            refund[resource] = back
+    modules.remove(module_id)
+    unit.modules = modules
+    await session.flush()
+    logger.info("拆卸模块：slot=%s unit=%s module=%s 返还 %s", slot_id, unit_id, module_id, refund)
+    return {"unit_id": unit_id, "module_id": module_id, "modules": modules, "refund": refund}
+
+
 async def repair_vehicle(
     session: AsyncSession,
     unit_id: int,

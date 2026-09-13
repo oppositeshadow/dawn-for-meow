@@ -102,7 +102,7 @@ async def test_tech_and_minigame_bonus_speed_up_smelting(client, session) -> Non
     await _boot(client)
     await _setup(session, furnaces=1, scrap=1000.0, seconds=100)
     base = (await _run(client))["offline_report"]["smelted_batches"]
-    assert base == 10
+    assert abs(base - 10) <= 0.3  # 秒级时间截断留容差（别再用精确相等）
 
     await session.rollback()
     # 科技 smelt_speed +25%（白名单键，直接写在节点载荷上）

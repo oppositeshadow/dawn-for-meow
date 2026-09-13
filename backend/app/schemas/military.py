@@ -24,6 +24,7 @@ class VehicleModifyRequest(BaseModel):
     unit_id: int
     nickname: str | None = Field(default=None, max_length=32)
     action: str | None = Field(default=None, description="SCRAP = 退役拆解（返还 50% 材料）")
+    module_id: str | None = Field(default=None, max_length=32, description="EQUIP / UNEQUIP 时的模块 ID")
 
 
 class VehicleRepairRequest(BaseModel):

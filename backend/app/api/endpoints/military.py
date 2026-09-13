@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import balance as B
 from app.core.database import get_session
+from app.core.errors import BadRequest
 from app.schemas.military import (
     AmbushConvoyRequest,
     FinalAssaultRequest,
@@ -67,6 +68,16 @@ async def post_vehicle_modify(
         data = await combat_service.scrap_vehicle(
             session, payload.unit_id, slot_id=payload.slot, planet_id=payload.planet_id
         )
+    elif payload.action in {"EQUIP", "UNEQUIP"}:
+        if not payload.module_id:
+            raise BadRequest("BAD_REQUEST", "装配/拆卸需要提供 module_id")
+        handler = (
+            combat_service.equip_module if payload.action == "EQUIP" else combat_service.unequip_module
+        )
+        data = await handler(
+            session, payload.unit_id, payload.module_id, slot_id=payload.slot, planet_id=payload.planet_id
+        )
+        await session.commit()
     else:
         from app.core.errors import NotFound
         from app.models import VehicleUnit

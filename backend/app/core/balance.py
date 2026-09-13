@@ -464,6 +464,42 @@ VEHICLE_TYPES: dict[str, dict] = {
     },
 }
 
+#: 车载模块（《数值平衡表》§9.10）：效果只作用于装它的那辆车
+VEHICLE_MODULES: dict[str, dict] = {
+    "laser_mk2": {
+        "name": "高频聚焦激光",
+        "slots": 1,
+        "cost": {"alloys": 15.0, "chips": 10.0},
+        "unlock_tech": "tech_laser_firecontrol",
+        "effects": {"vs_shield": 1.8, "dps_bonus": 0.10},
+    },
+    "drill_mk2": {
+        "name": "热融破拆钻",
+        "slots": 1,
+        "cost": {"alloys": 25.0, "chips": 8.0},
+        "unlock_tech": "tech_heavy_breaker_exoskeleton",
+        "effects": {"armor_shred": ARMOR_SHRED_RATIO, "dps_bonus": 0.15},
+    },
+    "armor_plate": {
+        "name": "附加装甲板",
+        "slots": 1,
+        "cost": {"alloys": 30.0},
+        "unlock_tech": "tech_armored_car_chassis",
+        "effects": {"armor_bonus": 0.25},
+    },
+}
+
+#: 每车型的模块槽数（§9.10）
+VEHICLE_MODULE_SLOTS: dict[str, int] = {"light_car": 1, "armored_car": 2, "breaker_mech": 2}
+
+#: 拆卸返还比例（与退役拆解同口径，避免"不敢试配装"）
+VEHICLE_MODULE_REFUND_RATIO = 0.5
+
+
+def vehicle_module_slots(unit_type: str) -> int:
+    return int(VEHICLE_MODULE_SLOTS.get(unit_type, 0))
+
+
 ENEMY_UNITS: dict[str, dict] = {
     "scout_roomba": {"name": "侦察扫地机", "shield": 0.0, "armor": 40.0, "hull": 80.0, "dps": 5.0, "damage_type": "KINETIC"},
     "suicide_spider": {"name": "小型自爆蜘蛛", "shield": 0.0, "armor": 80.0, "hull": 130.0, "dps": 30.0, "damage_type": "EXPLOSIVE"},
