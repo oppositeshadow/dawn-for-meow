@@ -52,7 +52,8 @@ async def test_locked_tech_contributes_nothing(client, session) -> None:
 
     await session.rollback()
     totals = await tech_service.unlocked_effects(session, 1, 0)
-    assert totals == {"catnip_efficiency": 0.0, "power_kw": 0.0}  # 白名单为空表也给 0 占位
+    # 白名单每个键都给 0 占位（当前白名单：猫薄荷 / 发电 / 两种装甲写法）
+    assert totals == {"catnip_efficiency": 0.0, "power_kw": 0.0, "fleet_armor": 0.0, "armor_bonus": 0.0}
 
 
 async def test_unlocked_tech_bonus_shows_and_is_capped(client, session) -> None:
@@ -117,7 +118,8 @@ async def test_whitelist_settles_power_kw_but_not_other_keys(client, session) ->
     totals = await tech_service.unlocked_effects(session, 1, 0)
     assert totals["power_kw"] == 5.0
     assert totals["catnip_efficiency"] == 0.1
-    assert "armor_bonus" not in totals  # 未接入的键绝不偷偷生效
+    assert totals["armor_bonus"] == 0.9  # 装甲加成同样已接线（全军装甲入口）
+    assert "smelt_speed" not in totals  # 未接入的键绝不偷偷生效
 
     after = (await client.get(STATE_URL, params={"slot": 1})).json()["data"]["power"]["gen_kw"]
     assert round(after - before, 2) == 5.0  # 净电力真的多了 5 kW

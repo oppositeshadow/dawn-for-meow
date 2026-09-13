@@ -101,6 +101,7 @@ def resolve_skirmish(
     *,
     attacker_morale: float = 1.0,
     attacker_dps_bonus: float = 0.0,
+    attacker_armor_bonus: float = 0.0,
     defender_stun_rounds: int = 0,
     max_rounds: int = B.COMBAT_MAX_ROUNDS,
 ) -> dict[str, Any]:
@@ -109,6 +110,14 @@ def resolve_skirmish(
     返回 `winner`（ATTACK / DEFENSE / TIMEOUT）、回合数、双方单位终态与结构化战报。
     """
     log: list[str] = []
+    # 全军装甲加成（科技 `fleet_armor` / `armor_bonus`）：在结算最外层一次性生效，
+    # 远征 / 伏击 / 突袭拦截 / 三段决战四条战斗链共用同一入口，杜绝"只有一半战斗吃得到"。
+    if attacker_armor_bonus:
+        factor = 1.0 + float(attacker_armor_bonus)
+        for unit in attackers:
+            unit["armor"] = float(unit.get("armor", 0.0)) * factor
+            if "armor_max" in unit:
+                unit["armor_max"] = float(unit["armor_max"]) * factor
     for unit in attackers:
         unit["morale"] = attacker_morale
         if attacker_dps_bonus:

@@ -26,6 +26,14 @@ from app.services.game_init_service import now_timestamp
 
 logger = logging.getLogger("dawn_meow.combat")
 
+
+async def _fleet_armor_bonus(session, slot_id: int, planet_id: int) -> float:
+    """已解锁科技给全军装甲的加成（`fleet_armor` 母星写法 + `armor_bonus` 特化卡写法）。"""
+    from app.services import tech_service
+
+    totals = await tech_service.unlocked_effects(session, slot_id, planet_id)
+    return round(float(totals.get("fleet_armor", 0.0)) + float(totals.get("armor_bonus", 0.0)), 4)
+
 RESOURCE_PRECISION = 2
 
 
@@ -605,6 +613,7 @@ async def ambush_convoy(
         defenders,
         attacker_morale=morale_multiplier(catnip_ratio),
         attacker_dps_bonus=dps_bonus,
+        attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
         defender_stun_rounds=stun_rounds,
     )
     won = result["winner"] == "ATTACK"
@@ -757,7 +766,12 @@ async def intercept_alert(
     enemy_spec = B.ENEMY_UNITS[B.INTERCEPT_ENEMY_UNIT]
     defenders = [unit_from_spec(enemy_spec, prefix="enemy-scout")]
 
-    result = resolve_skirmish(attackers, defenders, attacker_morale=morale_multiplier(catnip_ratio))
+    result = resolve_skirmish(
+        attackers,
+        defenders,
+        attacker_morale=morale_multiplier(catnip_ratio),
+        attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
+    )
     won = result["winner"] == "ATTACK"
     now = now_timestamp()
 

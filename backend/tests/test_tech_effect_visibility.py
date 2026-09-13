@@ -23,9 +23,14 @@ async def test_node_reports_active_and_pending_effects(client, session) -> None:
     assert farm["pending_effects"] == {}
 
     armor = node(data, "tech_heavy_breaker_exoskeleton")
-    # fleet_armor 尚未接线 ⇒ 只出现在 pending_effects（如实告知，不假装加成已生效）
-    assert armor["active_effects"] == {}
-    assert armor["pending_effects"] == {"fleet_armor": 0.2}
+    # fleet_armor 已接线（全军装甲加成）⇒ 出现在 active_effects
+    assert armor["active_effects"] == {"fleet_armor": 0.2}
+    assert armor["pending_effects"] == {}
+
+    battery = node(data, "tech_battery_matrix")
+    # battery_kwh_max 尚未接线 ⇒ 只出现在 pending_effects（如实告知，不假装加成已生效）
+    assert battery["active_effects"] == {}
+    assert battery["pending_effects"] == {"battery_kwh_max": 200}
 
     # 人工塞入一个白名单键 ⇒ 立刻反映为"已接线"
     await session.rollback()
@@ -36,10 +41,10 @@ async def test_node_reports_active_and_pending_effects(client, session) -> None:
             )
         )
     ).scalars().one()
-    row.buff_payload = {"power_kw": 3, "armor_bonus": 0.2}
+    row.buff_payload = {"power_kw": 3, "smelt_speed": 1.2}
     row.status = TechStatus.LOCKED
     await session.commit()
     data = (await client.get(TREE_URL, params={"slot": 1, "planet_id": 0})).json()["data"]
     refreshed = node(data, "tech_heavy_breaker_exoskeleton")
     assert refreshed["active_effects"] == {"power_kw": 3}
-    assert refreshed["pending_effects"] == {"armor_bonus": 0.2}
+    assert refreshed["pending_effects"] == {"smelt_speed": 1.2}
