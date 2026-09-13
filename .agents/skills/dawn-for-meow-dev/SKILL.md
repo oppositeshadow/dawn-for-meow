@@ -56,6 +56,10 @@ description: 《喵星破晓》(Dawn for Meow) 本项目的开发流程清单—
 
 ## 四、每轮收尾
 
+0. **汇总数字必须从代码算**：接口数、设施数、节点数这类"总计"不要引用文档里手写的数字——
+   跑 `python scripts/api_doc_consistency.py`（接口账本）、`scripts/pacing_analysis.py`（科技节奏）等只读脚本得出。
+   历史教训：文档修订记录里写着"接口 69 个"，真实代码只有 **43 个**（多算了 26 个），一路抄了好几轮才发现。
+
 1. `python -m pytest -p no:cacheprovider -q`（在 `backend/` 下；沙箱内 pytest 挂起时加 `-p no:cacheprovider`）；
 2. 前端改动跑 `npm run build`（含 `vue-tsc` 类型检查）；
 3. 真机抽查：重启 8010 端口的 uvicorn，用一个**测试槽位**（别动用户的主档）打一次真实接口；
