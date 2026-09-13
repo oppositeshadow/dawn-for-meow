@@ -30,6 +30,18 @@ function eta(route: { arrives_at: number }): string {
   const left = route.arrives_at - now.value
   return left <= 0 ? '即将抵达' : `${left} 秒`
 }
+
+// 星球性格（后端 planet_traits 透出）：只展示，不在这里算系数
+function traitText(traits: { capacity_multiplier: number; catnip_multiplier: number; output_bonus: Record<string, number> }): string {
+  const parts = [
+    `承载力 ×${traits.capacity_multiplier}`,
+    `产粮 ×${traits.catnip_multiplier}`,
+  ]
+  for (const [resource, factor] of Object.entries(traits.output_bonus ?? {})) {
+    if (factor !== 1) parts.push(`${resource === 'scrap' ? '废铁' : resource === 'chips' ? '芯片' : resource} ×${factor}`)
+  }
+  return parts.join(' ｜ ')
+}
 </script>
 
 <template>
@@ -61,6 +73,7 @@ function eta(route: { arrives_at: number }): string {
           </button>
         </div>
         <p v-if="item.biome_tag" class="text-[10px] text-terminal-dim">{{ item.biome_tag }}</p>
+        <p v-if="item.planet_id !== 0" class="text-[10px] text-terminal-warn/80">{{ traitText(item.traits) }}</p>
         <div v-if="item.logistics_routes.length" class="space-y-0.5 text-[10px] text-terminal-dim">
           <div v-for="route in item.logistics_routes" :key="route.route_id">
             在途：{{ route.cat_count }} 只猫 · {{ eta(route) }}

@@ -94,6 +94,22 @@ const starColonyEmpty = computed(
     (colony.facilities.housing_box ?? 0) === 0,
 )
 
+// 当前星球的性格（承载 / 产粮 / 专属产出），文案来自后端 planet_traits
+const starTraits = computed(
+  () => planetStore.planets.find((item) => item.planet_id === colony.planetId)?.traits ?? null,
+)
+const starTraitText = computed(() => {
+  const traits = starTraits.value
+  if (!traits) return ''
+  const parts = [`承载力 ×${traits.capacity_multiplier}`, `产粮 ×${traits.catnip_multiplier}`]
+  for (const [resource, factor] of Object.entries(traits.output_bonus ?? {})) {
+    if (factor !== 1) {
+      parts.push(`${resource === 'scrap' ? '废铁' : resource === 'chips' ? '芯片' : resource} ×${factor}`)
+    }
+  }
+  return parts.join(' ｜ ')
+})
+
 // 外星球开荒清单：猫口到了之后接着干什么（母星冷启动的"外星球版"，去掉手点废墟那几步）
 const starSteps = computed(() => {
   const facilities = colony.facilities
@@ -219,8 +235,7 @@ onMounted(bootstrap)
             先在星图上从母星运一批猫口过来（出发即离港、单趟 60 秒），它们落地后才会开始盖窝、生产。
           </p>
           <p class="mt-2 text-[11px] leading-relaxed text-terminal-dim">
-            星球性格：【{{ starName }}】的承载力与产粮系数与母星不同（熔岩星难住人、小行星带能塞猫但吃不饱），
-            先派 2~4 只探路，别把主巢搬空。
+            星球性格：{{ starTraitText || '与母星一致' }} —— 先派 2~4 只探路，别把主巢搬空。
           </p>
           <div class="mt-3 flex gap-2">
             <button class="btn btn-primary flex items-center gap-2 px-3 py-1.5" @click="leftTab = 'planet'">
@@ -237,6 +252,7 @@ onMounted(bootstrap)
             【{{ starName }}】开荒进度
           </div>
           <ul class="mt-2 space-y-1 text-[12px]">
+            <li v-if="starTraitText" class="text-[10px] text-terminal-dim">星球性格：{{ starTraitText }}</li>
             <li v-for="step in starSteps" :key="step.label" class="flex items-center gap-2">
               <span :class="step.done ? 'text-terminal-accent' : 'text-terminal-dim'">
                 {{ step.done ? '☑' : '☐' }}

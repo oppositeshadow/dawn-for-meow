@@ -66,6 +66,7 @@ async def get_planet_state(
                     "unlocked_at": row.unlocked_at,
                     "biome_tag": row.biome_tag,
                     "logistics_routes": list(row.logistics_routes or []),
+                    "traits": B.planet_traits(row.planet_id),
                 }
                 for row in rows
             ],

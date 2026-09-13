@@ -23,6 +23,11 @@ export interface PlanetView {
   unlocked_at: number | null
   biome_tag: string | null
   logistics_routes: LogisticsRoute[]
+  traits: {
+    capacity_multiplier: number
+    catnip_multiplier: number
+    output_bonus: Record<string, number>
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

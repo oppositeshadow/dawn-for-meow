@@ -406,6 +406,21 @@ STAR_PLANET_OUTPUT_BONUS: dict[int, dict[str, float]] = {
 def planet_output_multiplier(planet_id: int, resource: str) -> float:
     """该星球某项产出的系数（母星与未登记资源一律 1.0）。"""
     return float(STAR_PLANET_OUTPUT_BONUS.get(int(planet_id), {}).get(resource, 1.0))
+
+
+def planet_traits(planet_id: int) -> dict[str, Any]:
+    """星球性格一览（唯一出处）：承载力 / 产粮 / 专属产出系数（《数值平衡表》§15.3）。
+
+    界面只需读这一个字典来展示"这颗星球擅长什么"，避免前端各写一套系数。
+    """
+    return {
+        "capacity_multiplier": float(STAR_PLANET_CAPACITY_MULTIPLIER.get(int(planet_id), 1.0)),
+        "catnip_multiplier": planet_catnip_multiplier(planet_id),
+        "output_bonus": {
+            resource: planet_output_multiplier(planet_id, resource)
+            for resource in ("scrap", "chips")
+        },
+    }
 #: 每颗外星球的特化节点数与阶梯分布（数值平衡表 §6.3 的 12~15 取下限 12：5 / 4 / 3）
 STAR_TECH_TIERS: tuple[int, ...] = (1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3)
 STAR_TECH_NODE_COUNT = len(STAR_TECH_TIERS)
