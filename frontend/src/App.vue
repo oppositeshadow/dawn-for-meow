@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Hammer, Pickaxe, RefreshCw, Sparkles, Terminal } from 'lucide-vue-next'
+import { Hammer, Orbit, Pickaxe, RefreshCw, Sparkles, Terminal } from 'lucide-vue-next'
 
 import Modal from '@/components/common/Modal.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -21,10 +21,12 @@ import { useAutoSave } from '@/composables/useAutoSave'
 import { useGameLoop } from '@/composables/useGameLoop'
 import { useColonyStore } from '@/stores/colony'
 import { useFacilitiesStore } from '@/stores/facilities'
+import { usePlanetStore } from '@/stores/planet'
 import { RESOURCE_LABELS, formatDuration } from '@/utils/format'
 
 const colony = useColonyStore()
 const facilitiesStore = useFacilitiesStore()
+const planetStore = usePlanetStore()
 
 useGameLoop()
 useAutoSave()
@@ -79,6 +81,19 @@ const coldStartSteps: Record<string, { title: string; body: string; action: stri
 
 const currentStep = computed(() => coldStartSteps[colony.coldStartPhase] ?? null)
 
+// 外星球开荒引导：切到外星球后基地是空的（按 §15.3 初始资源/猫口全 0），
+// 母星那套"手点废墟"的冷启动流程在这里不适用 ⇒ 单独给一段指引。
+const isStarPlanet = computed(() => colony.planetId !== 0)
+const starName = computed(
+  () => planetStore.planets.find((item) => item.planet_id === colony.planetId)?.name ?? `星球 ${colony.planetId}`,
+)
+const starColonyEmpty = computed(
+  () =>
+    isStarPlanet.value &&
+    colony.population.total === 0 &&
+    (colony.facilities.housing_box ?? 0) === 0,
+)
+
 const offlineSummary = computed(() => {
   const report = colony.offlineReport
   if (!report) return null
@@ -100,6 +115,7 @@ const offlineSummary = computed(() => {
 async function bootstrap() {
   await facilitiesStore.loadDefinitions()
   await colony.refresh({ silent: true })
+  await planetStore.refresh() // 外星球引导要显示星球名
   // 只有"真的离开过"才弹《离线休整报表》（验收清单 A-1：关闭页面一小时后重进）；
   // 页面刷新这类几秒钟的空档不打扰玩家。
   if ((colony.offlineReport?.elapsed_seconds ?? 0) >= 60) offlineOpen.value = true
@@ -150,7 +166,29 @@ onMounted(bootstrap)
           </span>
         </div>
 
-        <div v-if="currentStep" class="border-b border-terminal-line bg-terminal-accent/5 p-4">
+        <!-- 外星球开荒引导（优先于母星冷启动步骤：母星那套"手点废墟"在外星球不适用） -->
+        <div v-if="starColonyEmpty" class="border-b border-terminal-line bg-terminal-warn/5 p-4">
+          <div class="flex items-center gap-2 text-[13px] text-terminal-warn">
+            <Orbit class="h-4 w-4" />
+            登陆【{{ starName }}】· 这里还是一片空地
+          </div>
+          <p class="mt-2 text-[12px] leading-relaxed text-terminal-text/90">
+            外星球不会自动长猫——按《数值平衡表》§15.3，新基地的初始资源、设施与猫口全是 0。
+            先在星图上从母星运一批猫口过来（出发即离港、单趟 60 秒），它们落地后才会开始盖窝、生产。
+          </p>
+          <p class="mt-2 text-[11px] leading-relaxed text-terminal-dim">
+            星球性格：【{{ starName }}】的承载力与产粮系数与母星不同（熔岩星难住人、小行星带能塞猫但吃不饱），
+            先派 2~4 只探路，别把主巢搬空。
+          </p>
+          <div class="mt-3 flex gap-2">
+            <button class="btn btn-primary flex items-center gap-2 px-3 py-1.5" @click="leftTab = 'planet'">
+              <Orbit class="h-3.5 w-3.5" />
+              去星区星图运猫
+            </button>
+            <button class="btn px-3 py-1.5" @click="planetStore.switchTo(0)">回母星调度</button>
+          </div>
+        </div>
+        <div v-else-if="currentStep" class="border-b border-terminal-line bg-terminal-accent/5 p-4">
           <div class="flex items-center gap-2 text-[13px] text-terminal-accent">
             <Sparkles class="h-4 w-4" />
             {{ currentStep.title }}
