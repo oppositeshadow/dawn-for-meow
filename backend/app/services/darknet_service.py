@@ -226,7 +226,7 @@ async def trade_stock(
     darknet = await _darknet(session, slot_id)
     action = action.upper()
     if action not in ("BUY_LONG", "SELL_LONG"):
-        raise BadRequest("BAD_REQUEST", f"未知交易动作 {action}")
+        raise BadRequest("BAD_REQUEST", f"未知交易动作 {action}（合法值：BUY_LONG / SELL_LONG；平仓用 SELL_LONG）")
     stocks = [dict(quote) for quote in (darknet.stocks_data or [])]
     index = next((i for i, quote in enumerate(stocks) if quote["stock_id"] == stock_id), None)
     if index is None:

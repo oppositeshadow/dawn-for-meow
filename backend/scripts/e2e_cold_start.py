@@ -167,7 +167,65 @@ def main() -> None:
     print("== 开局闭环演练完成：手点 → 纸箱窝 → 第一只猫 → 农田 → 农夫 → 操作台 → 拾荒猫 ==")
     if "--stage" in sys.argv and "mid" in sys.argv:
         mid_stage()
+    if "--stage" in sys.argv and "late" in sys.argv:
+        late_stage()
     _ = time
+
+
+def grant(tech_ids: list[str], *, scrap: float = 500.0, alloys: float = 300.0,
+          chips: float = 200.0, cats: int = 8) -> None:
+    """测试专用：直接给科技/资源/猫口，跳过数小时挂机，聚焦接口契约走查。"""
+    settings = get_settings()
+    conn = pymysql.connect(
+        host=settings.db_host, port=settings.db_port, user=settings.db_user,
+        password=settings.db_password, database=settings.db_name, charset="utf8mb4", autocommit=True,
+    )
+    with conn.cursor() as cur:
+        for tech_id in tech_ids:
+            cur.execute(
+                "UPDATE tech_records SET status='UNLOCKED' WHERE slot_id=%s AND planet_id=0 AND tech_id=%s",
+                (SLOT, tech_id),
+            )
+        cur.execute(
+            "UPDATE colony_state SET scrap=%s, alloys=%s, chips=%s, total_cats=%s, job_idle=%s "
+            "WHERE slot_id=%s AND planet_id=0",
+            (scrap, alloys, chips, cats, cats, SLOT),
+        )
+        # 深网开户启动资金（测试专用；真机靠股市/黑市自己挣）
+        cur.execute("UPDATE darknet_state SET byte_credits=2000 WHERE slot_id=%s", (SLOT,))
+    conn.close()
+    print(f"（已授予科技 {tech_ids} 与资源/猫口，供契约走查）")
+
+
+def late_stage() -> None:
+    """后期契约走查：深网交易 → 机库组装 → 派遣远征（这三条链路此前没有端到端跑过）。"""
+    print("\n== 后期契约走查：深网 / 机库 / 远征 ==")
+    grant(["tech_shortwave_radio", "tech_armored_car_chassis", "tech_battery_matrix"])
+    travel(60)
+
+    state = call("GET", "/darknet/state", query={"slot": SLOT})["data"]
+    print(f"   深网行情：{len(state.get('stocks', []))} 支标的，算力币 {state.get('byte_credits')}")
+    step(
+        "买入 FORGE 10 股",
+        call("POST", "/darknet/stock/trade",
+             body={"slot": SLOT, "stock_id": "FORGE", "action": "BUY_LONG", "shares": 10}),
+    )
+
+    step("组装轻装猫车", call("POST", "/vehicle/assemble",
+                          body={"slot": SLOT, "unit_type": "light_car"}))
+    vehicles = call("GET", "/vehicle/list", query={"slot": SLOT, "planet_id": 0})["data"]
+    unit_ids = [item["unit_id"] for item in vehicles["vehicles"] if item["status"] == "IDLE"]
+    print(f"   机库待命载具：{unit_ids}")
+
+    step(
+        "派遣远征（沃尔玛废墟）",
+        call("POST", "/military/dispatch",
+             body={"slot": SLOT, "planet_id": 0, "target_id": "WALMART", "unit_ids": unit_ids[:2]}),
+    )
+    step("收取远征（未到点应报错）", call("POST", "/military/collect",
+                                   body={"slot": SLOT, "expedition_id": "not-exist"}),
+         expect="error")
+    print("== 后期契约走查完成 ==")
 
 
 def mid_stage() -> None:
