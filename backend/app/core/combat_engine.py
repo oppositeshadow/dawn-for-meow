@@ -55,9 +55,12 @@ def resolve_attack(
     target: dict[str, float],
     attacker_vs_shield: float | None = None,
     attacker_armor_shred: float | None = None,
+    air_defense: float = 0.0,
 ) -> tuple[dict[str, float], float, bool]:
     """单次攻击结算：返回（更新后的 target、对结构的实际伤害、是否触发弹射）。"""
-    remaining = max(0.0, float(attacker_atk))
+    # 防空加成只对**空中目标**生效：判断放在这里（单一位置），调用方无需再判一次
+    air_bonus = max(0.0, float(air_defense)) if target.get("air") else 0.0
+    remaining = max(0.0, float(attacker_atk) * (1.0 + air_bonus))
 
     # ① 护盾层
     if target.get("shield", 0.0) > 0 and remaining > 0:
@@ -107,6 +110,7 @@ def unit_from_spec(spec: Mapping[str, Any], *, prefix: str = "unit") -> dict[str
     return {
         "id": prefix,
         "name": spec.get("name", prefix),
+        "air": bool(spec.get("air", False)),  # 空中单位（政令【红点防空标准】对它加伤）
         "shield": float(spec.get("shield", 0.0)),
         "armor": float(spec.get("armor", 0.0)),
         "armor_max": float(spec.get("armor", 0.0)),
@@ -162,6 +166,7 @@ def resolve_skirmish(
     attacker_morale: float = 1.0,
     attacker_dps_bonus: float = 0.0,
     attacker_armor_bonus: float = 0.0,
+    attacker_air_defense: float = 0.0,
     defender_stun_rounds: int = 0,
     max_rounds: int = B.COMBAT_MAX_ROUNDS,
 ) -> dict[str, Any]:
@@ -199,6 +204,9 @@ def resolve_skirmish(
                     target,
                     attacker_vs_shield=attacker.get("vs_shield"),
                     attacker_armor_shred=attacker.get("armor_shred"),
+                    # 政令【全星系红点防空标准】：对**空中目标**（如突击无人机）伤害 +25%
+                    # （是否空中由 resolve_attack 内部判定，这里直接传全军加成）
+                    air_defense=attacker_air_defense,
                 )
                 if damage > 0:
                     log.append(

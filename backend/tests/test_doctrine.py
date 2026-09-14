@@ -29,8 +29,9 @@ def test_seed_matches_balance_table() -> None:
         "morale",
         "black_market_fee",
         "intel_speed",
+        "air_defense",
     }
-    assert doctrine_service.PENDING_EFFECTS == ("air_defense",)
+    assert doctrine_service.PENDING_EFFECTS == ()  # 8 条政令效果全部接线完成
     # 8 条政令的效果键必须全部落在"已接线 ∪ 无接入点"里，不能有漏网的
     keys = {key for item in defs for key in item["effects"]}
     assert keys <= set(doctrine_service.WIRED_EFFECTS) | set(doctrine_service.PENDING_EFFECTS)
@@ -114,4 +115,4 @@ async def test_active_effects_sums_only_wired_keys(client, session) -> None:
     assert effects["production_multiplier"] == 0.2
     assert effects["cat_capacity"] == 0.1
     assert effects["fleet_armor"] == 0.0
-    assert "air_defense" not in effects  # 未接线的键不参与结算
+    assert effects["air_defense"] == 0.25  # 三个已点亮的政令里含【红点防空标准】

@@ -594,7 +594,11 @@ def vehicle_module_slots(unit_type: str) -> int:
 ENEMY_UNITS: dict[str, dict] = {
     "scout_roomba": {"name": "侦察扫地机", "shield": 0.0, "armor": 40.0, "hull": 80.0, "dps": 5.0, "damage_type": "KINETIC"},
     "suicide_spider": {"name": "小型自爆蜘蛛", "shield": 0.0, "armor": 80.0, "hull": 130.0, "dps": 30.0, "damage_type": "EXPLOSIVE"},
-    "assault_drone": {"name": "突击无人机", "shield": 120.0, "armor": 60.0, "hull": 100.0, "dps": 18.0, "damage_type": "LASER"},
+    #: `air=True` 标记"空中单位"——政令【全星系红点防空标准】对它们有额外伤害（§15.2）
+    "assault_drone": {
+        "name": "突击无人机", "shield": 120.0, "armor": 60.0, "hull": 100.0, "dps": 18.0,
+        "damage_type": "LASER", "air": True,
+    },
     "heavy_cleaner_03": {"name": "重型清扫蜘蛛-03", "shield": 0.0, "armor": 200.0, "hull": 200.0, "dps": 22.0, "damage_type": "KINETIC"},
     # 装甲 500 → 430：凸曲线下关底会相对变强，按 §9.2.1 的结论同步再校准
     "heavy_guard_mech": {"name": "重型近卫机甲（关底）", "shield": 300.0, "armor": 430.0, "hull": 800.0, "dps": 45.0, "damage_type": "EXPLOSIVE"},

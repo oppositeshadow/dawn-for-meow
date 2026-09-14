@@ -25,12 +25,11 @@ WIRED_EFFECTS: tuple[str, ...] = (
     "morale",                 # 全星系士气（并入生产效率通道）
     "black_market_fee",       # 黑市手续费
     "intel_speed",            # 情报破译速度
+    "air_defense",            # 对空中单位伤害（突击无人机等 air 目标）
 )
 
 #: **暂不接线**（没有真实接入点，接了就成假接线；等玩法落地再接）
-PENDING_EFFECTS: tuple[str, ...] = (
-    "air_defense",  # "防空战力"目前没有对应的战斗概念（载具战斗走三层抗性），需要先定义玩法
-)
+PENDING_EFFECTS: tuple[str, ...] = ()
 
 
 def doctrine_defs() -> list[dict[str, Any]]:

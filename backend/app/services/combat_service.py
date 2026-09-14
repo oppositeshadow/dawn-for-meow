@@ -40,6 +40,14 @@ async def _fleet_armor_bonus(session, slot_id: int, planet_id: int) -> float:
     totals = await tech_service.unlocked_effects(session, slot_id, planet_id)
     return round(float(totals.get("fleet_armor", 0.0)) + float(totals.get("armor_bonus", 0.0)), 4)
 
+
+async def _air_defense_bonus(session, slot_id: int) -> float:
+    """政令【全星系红点防空标准】给"对空中单位伤害"的加成（《数值平衡表》§15.2）。"""
+    from app.services import doctrine_service
+
+    totals = await doctrine_service.active_effects(session, slot_id)
+    return round(max(0.0, float(totals.get("air_defense", 0.0))), 4)
+
 RESOURCE_PRECISION = 2
 
 
@@ -725,6 +733,7 @@ async def ambush_convoy(
         attacker_morale=morale_multiplier(catnip_ratio),
         attacker_dps_bonus=dps_bonus,
         attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
+        attacker_air_defense=await _air_defense_bonus(session, slot_id),
         defender_stun_rounds=stun_rounds,
     )
     won = result["winner"] == "ATTACK"
@@ -883,6 +892,7 @@ async def intercept_alert(
         defenders,
         attacker_morale=morale_multiplier(catnip_ratio),
         attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
+        attacker_air_defense=await _air_defense_bonus(session, slot_id),
     )
     won = result["winner"] == "ATTACK"
     now = now_timestamp()
