@@ -215,9 +215,9 @@ const tacticalLabel: Record<string, string> = {
         <div v-for="entry in view?.active_expeditions ?? []" :key="entry.expedition_id" class="flex items-center gap-2">
           <span>{{ view?.expedition_targets[entry.target_id]?.name ?? entry.target_id }}</span>
           <Badge v-if="entry.collected" text="已收取" />
-          <span v-else class="text-[10px] text-terminal-dim">
-            {{ military.now >= entry.ends_at ? '已返航' : `返航 ${remaining(entry.ends_at)}` }}
-          </span>
+          <!-- 已返航是"待办事项"，要和"还在路上"在视觉上区分开（灰字容易被当成进度提示忽略） -->
+          <Badge v-else-if="military.now >= entry.ends_at" text="已返航 · 待收取" tone="accent" />
+          <span v-else class="text-[10px] text-terminal-dim">返航 {{ remaining(entry.ends_at) }}</span>
           <button
             class="btn ml-auto px-1.5 py-0"
             :disabled="military.busy || entry.collected || military.now < entry.ends_at"
@@ -233,7 +233,9 @@ const tacticalLabel: Record<string, string> = {
         <div class="text-[11px] text-terminal-dim">急救舱（绝无死猫）</div>
         <div v-for="item in view?.hospital_queue ?? []" :key="item.unit_id" class="flex items-center gap-2 text-[11px]">
           <span>乘员 {{ item.cats }} 只休养中</span>
-          <span class="ml-auto text-terminal-dim">归队 {{ remaining(item.ends_at) }}</span>
+          <span class="ml-auto text-terminal-dim">
+            {{ military.now >= item.ends_at ? '休养期满 · 下次结算归队' : `归队 ${remaining(item.ends_at)}` }}
+          </span>
         </div>
       </div>
 
