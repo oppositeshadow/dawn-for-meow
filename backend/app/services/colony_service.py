@@ -359,6 +359,7 @@ def build_engine_state(
         * (
             1.0
             + float((doctrine_effects or {}).get("production_multiplier", 0.0))
+            + float((doctrine_effects or {}).get("morale", 0.0))
             + float((star_jobs or {}).get("morale", 0.0))
         ),
         "catnip_efficiency": max(0.0, float(catnip_efficiency)),

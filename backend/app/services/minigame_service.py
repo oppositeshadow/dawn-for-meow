@@ -269,6 +269,11 @@ async def act(
         row.best_score = float(state["best_attempts"])
         boss = await session.get(BossState, slot_id)
         gain = float(spec.get("reward", {}).get("intel_level_gain", 0.08))
+        # 政令【星际广播法案】情报破译速度 +10%（《数值平衡表》§15.2）
+        from app.services import doctrine_service
+
+        doctrine = await doctrine_service.active_effects(session, slot_id)
+        gain = gain * (1.0 + max(0.0, float(doctrine.get("intel_speed", 0.0))))
         if boss is not None:
             boss.intel_level = round(min(1.0, float(boss.intel_level) + gain), 4)
             reward = {

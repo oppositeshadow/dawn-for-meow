@@ -20,13 +20,20 @@ def test_seed_matches_balance_table() -> None:
     assert costs["下午三点晒太阳协议"] == 200
     assert costs["全星系红点防空标准"] == 300
     assert costs["永久呼噜场"] == 800
-    # 白名单只接这四项，其余键只展示
+    # 白名单 = 真正接进结算的键；没接入点的（防空）单独列在 PENDING 里，绝不混进白名单
     assert set(doctrine_service.WIRED_EFFECTS) == {
         "production_multiplier",
         "cat_capacity",
         "fleet_armor",
         "suspicion_growth",
+        "morale",
+        "black_market_fee",
+        "intel_speed",
     }
+    assert doctrine_service.PENDING_EFFECTS == ("air_defense",)
+    # 8 条政令的效果键必须全部落在"已接线 ∪ 无接入点"里，不能有漏网的
+    keys = {key for item in defs for key in item["effects"]}
+    assert keys <= set(doctrine_service.WIRED_EFFECTS) | set(doctrine_service.PENDING_EFFECTS)
 
 
 async def test_list_shows_unity_and_affordability(client, session) -> None:

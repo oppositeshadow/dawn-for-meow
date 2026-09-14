@@ -234,7 +234,15 @@ async def trade_stock(
     quote = stocks[index]
 
     price = trade_price(quote, "BUY" if action == "BUY_LONG" else "SELL")
-    fee = B.STOCK_TRADE_FEE_BYTES * fee_multiplier(float(darknet.exposure))
+    # 政令【罐罐外交】黑市手续费 −20%（《数值平衡表》§15.2）
+    from app.services import doctrine_service
+
+    doctrine = await doctrine_service.active_effects(session, slot_id)
+    fee = (
+        B.STOCK_TRADE_FEE_BYTES
+        * fee_multiplier(float(darknet.exposure))
+        * (1.0 + min(0.0, float(doctrine.get("black_market_fee", 0.0))))
+    )
     gross = price * float(shares)
     if action == "BUY_LONG":
         total = gross + fee
@@ -300,7 +308,14 @@ async def open_short(
     price = trade_price(quote, "SELL")
     proceeds = price * float(shares)
     margin = proceeds / leverage
-    fee = B.STOCK_TRADE_FEE_BYTES * fee_multiplier(float(darknet.exposure))
+    from app.services import doctrine_service
+
+    doctrine = await doctrine_service.active_effects(session, slot_id)
+    fee = (
+        B.STOCK_TRADE_FEE_BYTES
+        * fee_multiplier(float(darknet.exposure))
+        * (1.0 + min(0.0, float(doctrine.get("black_market_fee", 0.0))))
+    )
     if float(darknet.byte_credits) < margin + fee:
         raise InsufficientResource(
             detail=f"保证金不足：需要 {margin + fee:.1f}（{leverage}x），当前 {float(darknet.byte_credits):.1f}"
