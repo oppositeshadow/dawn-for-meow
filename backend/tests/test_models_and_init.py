@@ -13,6 +13,7 @@ from app.core.errors import Conflict
 from app.core.seed_loader import (
     facility_defs,
     job_defs,
+    load_seed,
     minigame_defs,
     tech_defs_planet0,
 )
@@ -271,6 +272,21 @@ class TestSeedConsistency:
             assert seed.get("planet_scope") == B.facility_planet_scope(facility_id), (
                 f"{facility_id}.planet_scope"
             )
+
+    def test_cat_plant_halo_matches_balance_constants(self):
+        """猫草在田光环：种子 JSON 与 balance 常量必须一致（否则 balance 里的那份就是死副本）。"""
+        seeds = {item["plant_id"]: item for item in load_seed("cat_plants.json")["plants"]}
+        checks = (
+            ("glow_moss", "power_kw", B.GARDEN_HALO_GLOW_MOSS_KW),
+            ("golden_grass", "black_market_price", B.GARDEN_GOLDEN_GRASS_BLACK_MARKET_PRICE),
+        )
+        for plant_id, key, expected in checks:
+            seed = seeds[plant_id]
+            actual = (seed.get("halo") or {}).get(key)
+            if actual is None:
+                # 黄金草的"黑市价"在种子里记成 harvest.byte_credits（200 算力币/株）
+                actual = (seed.get("harvest") or {}).get("byte_credits")
+            assert actual == expected, f"{plant_id}.{key}: 种子 {actual} ≠ balance {expected}"
 
     def test_job_seed_matches_balance(self):
         seeds = {item["job_id"]: item for item in job_defs()}
