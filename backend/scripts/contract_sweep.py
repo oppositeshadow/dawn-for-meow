@@ -76,6 +76,15 @@ def main() -> None:
         counts[status] = counts.get(status, 0) + 1
     print("状态码分布：" + "　".join(f"{code}:{count}" for code, count in sorted(counts.items())))
 
+    # 人工复核清单：最小请求就返回 200 的接口——POST 尤其值得看，可能是"静默接受残缺输入"
+    ok_posts = [row for row in results if row[2] == 200 and row[0] == "POST"]
+    ok_gets = [row for row in results if row[2] == 200 and row[0] == "GET"]
+    print(f"\n== 需要人工复核的 200（{len(ok_posts)} 个 POST / {len(ok_gets)} 个 GET）==")
+    for method, path, _, body in ok_posts:
+        print(f"  ⚠️ {method} {path} → {body[:110]}")
+    print("  ---- GET（多为状态读取，正常）----")
+    print("  " + "、".join(path for _, path, _, _ in ok_gets))
+
 
 if __name__ == "__main__":
     main()
