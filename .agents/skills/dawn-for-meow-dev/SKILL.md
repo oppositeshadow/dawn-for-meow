@@ -49,6 +49,10 @@ description: 《喵星破晓》(Dawn for Meow) 本项目的开发流程清单—
 > ① `offline_engine.build_report_summary`（或对应裁剪函数）② `schemas/*.py`（Pydantic 会**静默丢弃**未声明字段）
 > ③ 前端 `types/game.ts` 与渲染层。这个坑已经踩过 5 次（`launch_silo` / `smelted_batches` / `gained_alloys` /
 > `research` / `gained_unity`），每次症状都一样：代码写了、日志有数、接口里查无此字段。
+>
+> **现在有自动守卫了**：`tests/test_schema_field_coverage.py` 断言"裁剪函数产出的键 ⊆ Schema 声明"，
+> 缺字段时报错会**直接点名**（例：`这些字段会被 Pydantic 静默丢弃…['gained_unity']`）。
+> **写完守卫要验证它真有牙齿**——临时删掉一个 schema 字段、确认测试变红、再恢复（本项目已这么验过）。
 
 把某个效果键写进 `WIRED_EFFECTS` / `TECH_ACTIVE_EFFECT_KEYS` **只是登记，不等于它真的参与结算**。
 接线完成的唯一证据是：**引擎里有一处 `get_*_effects()` 的返回值被乘/加进公式**，并且**有用例证明数字变了**。
