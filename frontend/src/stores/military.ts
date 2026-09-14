@@ -229,6 +229,17 @@ export const useMilitaryStore = defineStore('military', () => {
       },
     )
 
+  /** 战斗过程播报：摘要之外，把逐回合战报的**最后几条**（决定胜负的回合）也念出来。
+   *
+   * 后端 `log` 最多 12 行，全念会把终端刷屏 ⇒ 只取尾部 4 行，且明确标出"共 N 回合"。
+   */
+  function logBattle(data: Record<string, any>, tone: 'info' | 'warn' | 'crit') {
+    const lines = (data.log ?? []) as string[]
+    if (lines.length === 0) return
+    colony.log(`── 交战过程（共 ${data.rounds ?? '?'} 回合，末尾 ${Math.min(4, lines.length)} 回合）──`, 'info')
+    for (const line of lines.slice(-4)) colony.log(`　${line}`, tone)
+  }
+
   const ambush = (unitIds: number[]) =>
     run(
       '伏击车队',
@@ -238,7 +249,9 @@ export const useMilitaryStore = defineStore('military', () => {
       }),
       (result) => {
         const data = result.data
-        for (const line of data.events ?? []) colony.log(String(line), data.won ? 'info' : 'warn')
+        const tone = data.won ? 'info' : 'warn'
+        for (const line of data.events ?? []) colony.log(String(line), tone)
+        logBattle(data, tone)
       },
     )
 
@@ -272,7 +285,9 @@ export const useMilitaryStore = defineStore('military', () => {
         body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId, unit_ids: unitIds }),
       }),
       (result) => {
-        for (const line of result.data.events ?? []) colony.log(String(line), result.data.won ? 'info' : 'crit')
+        const tone = result.data.won ? 'info' : 'crit'
+        for (const line of result.data.events ?? []) colony.log(String(line), tone)
+        logBattle(result.data, tone)
       },
     )
 
@@ -284,7 +299,9 @@ export const useMilitaryStore = defineStore('military', () => {
         body: JSON.stringify({ slot: colony.slotId, planet_id: colony.planetId, stage, unit_ids: unitIds }),
       }),
       (result) => {
-        for (const line of result.data.events ?? []) colony.log(String(line), result.data.won ? 'warn' : 'crit')
+        const tone = result.data.won ? 'warn' : 'crit'
+        for (const line of result.data.events ?? []) colony.log(String(line), tone)
+        logBattle(result.data, tone)
         for (const line of result.data.staff_roll ?? []) colony.log(String(line), 'info')
       },
     )
