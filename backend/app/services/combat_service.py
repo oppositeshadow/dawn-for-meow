@@ -54,6 +54,12 @@ async def _escort_shield_bonus(session, slot_id: int, planet_id: int) -> float:
     bucket = await session.get(LaborBucket, (slot_id, planet_id, "fleet_commander"))
     return B.fleet_commander_shield_bonus(int(bucket.cat_count) if bucket else 0)
 
+
+async def _crit_chance(session, slot_id: int, planet_id: int) -> float:
+    """无人机群领航官的暴击概率（§15.1：+2%/只，封顶 5 只 = 10%）。"""
+    bucket = await session.get(LaborBucket, (slot_id, planet_id, "fleet_commander"))
+    return B.fleet_commander_crit_chance(int(bucket.cat_count) if bucket else 0)
+
 RESOURCE_PRECISION = 2
 
 
@@ -750,6 +756,7 @@ async def ambush_convoy(
         attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
         attacker_air_defense=await _air_defense_bonus(session, slot_id),
         attacker_shield_bonus=await _escort_shield_bonus(session, slot_id, planet_id),
+        attacker_crit_chance=await _crit_chance(session, slot_id, planet_id),
         defender_stun_rounds=stun_rounds,
     )
     won = result["winner"] == "ATTACK"
@@ -910,6 +917,7 @@ async def intercept_alert(
         attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
         attacker_air_defense=await _air_defense_bonus(session, slot_id),
         attacker_shield_bonus=await _escort_shield_bonus(session, slot_id, planet_id),
+        attacker_crit_chance=await _crit_chance(session, slot_id, planet_id),
     )
     won = result["winner"] == "ATTACK"
     now = now_timestamp()

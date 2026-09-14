@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import hashlib
 from typing import Any
 
 from app.core import balance as B
@@ -124,6 +125,17 @@ def is_alive(unit: Mapping[str, float]) -> bool:
     return float(unit.get("hull", 0.0)) > 0
 
 
+def is_critical(round_number: int, attacker_id: str, target_id: str, chance: float) -> bool:
+    """**确定性**暴击判定（§15.1）：同一场战斗、同一回合、同一对攻守方，结果永远一致。
+
+    用 `sha256(回合:攻方:守方)` 取值而不是随机数——与全案（行情、航线劫掠）一致，便于复现与测试。
+    """
+    if chance <= 0:
+        return False
+    digest = hashlib.sha256(f"{round_number}:{attacker_id}:{target_id}".encode("utf-8")).hexdigest()[:8]
+    return int(digest, 16) / 0xFFFFFFFF < min(1.0, float(chance))
+
+
 def apply_module_effects(unit: dict[str, Any], modules: list[str] | None) -> dict[str, Any]:
     """把车载模块的效果写进该单位的战斗快照（《数值平衡表》§9.10）。
 
@@ -168,6 +180,7 @@ def resolve_skirmish(
     attacker_armor_bonus: float = 0.0,
     attacker_air_defense: float = 0.0,
     attacker_shield_bonus: float = 0.0,
+    attacker_crit_chance: float = 0.0,
     defender_stun_rounds: int = 0,
     max_rounds: int = B.COMBAT_MAX_ROUNDS,
 ) -> dict[str, Any]:
@@ -205,7 +218,15 @@ def resolve_skirmish(
                     continue
                 before = float(target["hull"])
                 _, damage, ejected = resolve_attack(
-                    float(attacker["dps"]) * B.COMBAT_ROUND_SECONDS * float(attacker.get("morale", 1.0)),
+                    float(attacker["dps"])
+                    * B.COMBAT_ROUND_SECONDS
+                    * float(attacker.get("morale", 1.0))
+                    # 暴击（§15.1）：确定性判定，命中则这一击 ×1.5
+                    * (
+                        B.CRIT_DAMAGE_MULTIPLIER
+                        if is_critical(rounds, str(attacker["id"]), str(target["id"]), attacker_crit_chance)
+                        else 1.0
+                    ),
                     str(attacker.get("damage_type", "KINETIC")),
                     target,
                     attacker_vs_shield=attacker.get("vs_shield"),

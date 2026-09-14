@@ -924,6 +924,17 @@ def fleet_commander_shield_bonus(count: int) -> float:
     capped = min(max(0, int(count)), int(STAR_JOB_LIMITS["fleet_commander"]))
     return round(FLEET_COMMANDER_SHIELD_PER_CAT * capped, 4)
 
+
+#: 无人机群领航官（§15.1）：**无人机暴击率 +2%/只**——暴击 = 该次攻击伤害 ×1.5（确定性判定）
+FLEET_COMMANDER_CRIT_PER_CAT = 0.02
+CRIT_DAMAGE_MULTIPLIER = 1.5
+
+
+def fleet_commander_crit_chance(count: int) -> float:
+    """暴击概率（封顶 5 只 = 10%）。"""
+    capped = min(max(0, int(count)), int(STAR_JOB_LIMITS["fleet_commander"]))
+    return round(FLEET_COMMANDER_CRIT_PER_CAT * capped, 4)
+
 #: 星系法典政令（8 条：消耗文明凝聚力）
 DOCTRINES: dict[str, dict] = {
     "sunbath_3pm": {"name": "下午三点晒太阳协议", "cost": 200.0, "effect": {"production": 0.20}},
