@@ -33,6 +33,9 @@ export interface PlanetView {
     name: string
     label: string
     phase: 'HIGH' | 'LOW' | 'NEUTRAL'
+    /** 整轮秒数与当前相位长度（后端 `balance.PLANET_CYCLES` 口径，前端只用来画进度条） */
+    period: number
+    phase_seconds: number
     seconds_left: number
     solar_multiplier: number
     production_multiplier: number

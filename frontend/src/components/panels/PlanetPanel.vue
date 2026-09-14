@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Orbit, Rocket } from 'lucide-vue-next'
 
 import Badge from '@/components/common/Badge.vue'
+import GaugeBar from '@/components/common/GaugeBar.vue'
 import { useColonyStore } from '@/stores/colony'
 import { usePlanetStore, type PlanetView } from '@/stores/planet'
 
@@ -96,6 +97,13 @@ function traitText(traits: { capacity_multiplier: number; catnip_multiplier: num
           {{ cycleText(item.cycle) }}
           <span v-if="cycleEffectText(item.cycle)" class="text-terminal-dim">｜{{ cycleEffectText(item.cycle) }}</span>
         </p>
+        <!-- 相位进度条：只画"这段潮走了多少"，不替玩家判断好坏（同一相位在三颗星利弊不同） -->
+        <GaugeBar
+          v-if="item.cycle.phase_seconds > 0"
+          :value="item.cycle.phase_seconds - item.cycle.seconds_left"
+          :max="item.cycle.phase_seconds"
+          :height="3"
+        />
         <div v-if="item.logistics_routes.length" class="space-y-0.5 text-[10px] text-terminal-dim">
           <div v-for="route in item.logistics_routes" :key="route.route_id">
             在途：{{ route.cat_count }} 只猫 · {{ eta(route) }}

@@ -18,6 +18,9 @@ venv/
 # 运行期账本（LLM 每日预算）
 backend/var/*.json
 
+# 运行期日志（本地起 uvicorn 时的重定向输出）
+backend/var/*.log
+
 # 前端
 node_modules/
 dist/

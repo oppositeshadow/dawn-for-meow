@@ -18,6 +18,15 @@ DOCS = ("数值平衡表.md", "数据库设计定稿.md", "代码结构与核心
 CLAIM_MARKERS = ("已落地", "已接线", "✅")
 
 IDENTIFIER = re.compile(r"`([A-Za-z_][A-Za-z0-9_./]{2,})`")
+#: 直角引号里的"已落地 / 已接线 / ✅"是在**提到这几个词**（例如"本脚本扫『已落地』段落"这类自我介绍），
+#: 不是声明某功能已落地——那类行整行跳过，否则修订记录里的**历史**标识符（如已废弃的错误码）
+#: 会被误报成"文档说了没实现"。只认直角引号：普通引号里的关键词仍按声明处理，避免把真声明的行整行放过。
+QUOTED = re.compile(r"「[^」]*」")
+
+
+def is_claim_line(line: str) -> bool:
+    """去掉引号内容后仍带声明关键词，才算"这条在说某功能已落地"。"""
+    return any(marker in QUOTED.sub("", line) for marker in CLAIM_MARKERS)
 
 
 def needles(token: str) -> list[str]:
@@ -57,7 +66,7 @@ def main() -> None:
     checked = 0
     for name in DOCS:
         for line in (ROOT / name).read_text(encoding="utf-8").splitlines():
-            if not any(marker in line for marker in CLAIM_MARKERS):
+            if not is_claim_line(line):
                 continue
             for token in IDENTIFIER.findall(line):
                 checked += 1

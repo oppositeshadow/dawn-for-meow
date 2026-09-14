@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from app.core import balance as B
 from app.models import ColonyState, LaborBucket, PlanetState
 
@@ -16,7 +18,11 @@ def test_output_bonus_table() -> None:
     assert B.planet_output_multiplier(1, "catnip") == 1.0  # 未登记资源不生效
 
 
-async def _run(client, session, planet_id: int, seconds: int = 300) -> dict:
+async def _run(client, session, planet_id: int, seconds: int = 300) -> tuple[dict, int]:
+    """回拨 `last_tick_time` 跑一次离线结算，返回（离线报表, 结算区间的结束时刻）。
+
+    结束时刻是"服务端 now"的近似值（毫秒级截断 + 一个往返），用来复算区间内的周期系数。
+    """
     await session.rollback()
     colony = await session.get(ColonyState, (1, planet_id))
     colony.scrap = 0.0
@@ -25,7 +31,18 @@ async def _run(client, session, planet_id: int, seconds: int = 300) -> dict:
     colony.job_idle = 0
     colony.last_tick_time = int(colony.last_tick_time) - seconds
     await session.commit()
-    return (await client.get(STATE_URL, params={"slot": 1, "planet_id": planet_id})).json()["data"]["offline_report"]
+    report = (await client.get(STATE_URL, params={"slot": 1, "planet_id": planet_id})).json()["data"]["offline_report"]
+    return report, int(time.time())
+
+
+def _cycle_factor(planet_id: int, report: dict, end: int) -> float:
+    """结算区间内该星球的**周期产出平均系数**（§15.5；母星恒 1.0）。
+
+    星球周期会乘在拾荒产出上，所以用例的期望值必须把它算进去——
+    否则断言会随"挂钟落在哪个相位"抖动（碎星流 20 分钟一轮，来袭相位 ×1.5，约 1/3 概率误报）。
+    """
+    elapsed = int(float(report["elapsed_seconds"]))
+    return float(B.planet_cycle_average(planet_id, end - elapsed, end)["production_multiplier"])
 
 
 async def test_star_band_mines_more_scrap_than_home(client, session) -> None:
@@ -44,10 +61,14 @@ async def test_star_band_mines_more_scrap_than_home(client, session) -> None:
         await session.commit()
 
     # 60 秒：产出约 60，稳在 200 的仓储上限之内（否则被爆仓夹住看不出倍率）
-    home = await _run(client, session, 0, seconds=60)
-    band = await _run(client, session, 3, seconds=60)
+    home, _ = await _run(client, session, 0, seconds=60)
+    band, band_end = await _run(client, session, 3, seconds=60)
     assert home["gained_scrap"] > 0
-    expected = home["gained_scrap"] * B.STAR_PLANET_OUTPUT_BONUS[3]["scrap"]
+    expected = (
+        home["gained_scrap"]
+        * B.STAR_PLANET_OUTPUT_BONUS[3]["scrap"]
+        * _cycle_factor(3, band, band_end)  # 星带碎星流：「来袭」相位拾荒 ×1.5
+    )
     assert abs(band["gained_scrap"] - expected) <= expected * 0.03  # 秒级截断留容差
 
 

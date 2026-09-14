@@ -299,8 +299,8 @@ def build_engine_state(
     production_multiplier: float = 1.0,
     doctrine_effects: Mapping[str, float] | None = None,
     star_jobs: Mapping[str, float] | None = None,
-    planet_cycle: Mapping[str, Any] | None = None,
     planet_cycle_factor: float = 1.0,
+    solar_multiplier: float = 1.0,
     catnip_efficiency: float = 0.0,
     tech_power_kw: float = 0.0,
     tech_effects: Mapping[str, float] | None = None,
@@ -373,7 +373,7 @@ def build_engine_state(
         "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips")
         + _exclusive_output_bonus(facilities, "chips"),
         # 星球周期（§15.5）：太阳能出力与产出的当期系数（确定性，只依赖绝对时间）
-        "solar_multiplier": float((planet_cycle or {}).get("solar_multiplier", 1.0)),
+        "solar_multiplier": float(solar_multiplier),
         # 高频感应电炉座数（《数值平衡表》§3.5）：电力侧按 −10 kW/座 计，熔炼循环下一步接
         "induction_furnaces": int(facilities.get("induction_furnace", 0)),
         # 熔炼速度加成（§3.5）：科技 smelt_speed + 小游戏配方加成，相加后统一乘在炉次速率上
@@ -489,6 +489,10 @@ async def settle_offline(
     star_jobs = star_job_bonuses(labor)
     # 星球周期（§15.5）：按**绝对时间**取当期阶段（确定性，无新表）
     cycle = B.planet_cycle(planet_id, now)
+    # 离线时长在结算前就要用（周期加权、报表 note），先算出来
+    delta_seconds = now - int(colony.last_tick_time)
+    # 离线区间可能跨很多轮相位 ⇒ 用区间**时间加权平均**，而不是拿结算时点的相位乘整段
+    cycle_avg = B.planet_cycle_average(planet_id, now - int(max(0, delta_seconds)), now)
     # 蓄电池电容池 = 基础值 + 科技扩容（每次结算重算一遍，幂等、不累加）
     colony.battery_kwh_max = B.BATTERY_KWH_MAX + float(tech_effects.get("battery_kwh_max", 0.0))
     engine_state = build_engine_state(
@@ -505,11 +509,24 @@ async def settle_offline(
         minigame_smelt_bonus=minigame_smelt_bonus,
         doctrine_effects=doctrine_effects,
         star_jobs=star_jobs,
-        planet_cycle=cycle,
-        planet_cycle_factor=float(cycle["production_multiplier"]),
+        planet_cycle_factor=float(cycle_avg["production_multiplier"]),
+        solar_multiplier=float(cycle_avg["solar_multiplier"]),
     )
-    delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)
+    # 跨了至少一整轮才值得提：告诉玩家"离线期间这颗星换了几次潮"，并给出区间平均值
+    cycle_period = int(cycle.get("period", 0) or 0)
+    if cycle["name"] and cycle_period > 0 and delta_seconds >= cycle_period:
+        rounds = int(delta_seconds // cycle_period)
+        swing: list[str] = []
+        if abs(cycle_avg["solar_multiplier"] - 1.0) > 1e-9:
+            swing.append(f"发电 ×{cycle_avg['solar_multiplier']:.2f}")
+        if abs(cycle_avg["production_multiplier"] - 1.0) > 1e-9:
+            swing.append(f"产出 ×{cycle_avg['production_multiplier']:.2f}")
+        avg_hint = f"区间平均 {' / '.join(swing)}" if swing else "区间平均为中性，高低相位互相抵消"
+        report["notes"].insert(
+            0,
+            f"离线期间经历 {rounds} 轮【{cycle['name']}】，当前处于{cycle['label']}（{avg_hint}）",
+        )
 
     _persist_report(colony, labor, report, now=now)
     _persist_security(military, report)

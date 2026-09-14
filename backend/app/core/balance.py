@@ -971,31 +971,73 @@ PLANET_CYCLES: dict[int, dict[str, Any]] = {
 def planet_cycle(planet_id: int, now: int) -> dict[str, Any]:
     """该星球当前的周期阶段（确定性：只依赖绝对时间）。
 
-    返回 `{name, label, phase, seconds_left, solar_multiplier, production_multiplier, raid_multiplier}`；
-    母星与未登记星球返回中性值（全 1.0，`label=""`）。
+    返回 `{name, label, phase, period, phase_seconds, seconds_left, solar_multiplier,
+    production_multiplier, raid_multiplier}`；`period / phase_seconds` 给界面画"这段潮还剩多久"的进度条用
+    （**相位长度是平衡表口径，不能让前端自己推**）。母星与未登记星球返回中性值（全 1.0，`label=""`）。
     """
     spec = PLANET_CYCLES.get(int(planet_id))
     if spec is None:
         return {
-            "name": "", "label": "", "phase": "NEUTRAL", "seconds_left": 0,
+            "name": "", "label": "", "phase": "NEUTRAL", "period": 0, "phase_seconds": 0, "seconds_left": 0,
             "solar_multiplier": 1.0, "production_multiplier": 1.0, "raid_multiplier": 1.0,
         }
     period = int(spec["period"])
+    high_seconds = int(spec["high_seconds"])
     offset = int(now) % period
-    is_high = offset < int(spec["high_seconds"])
+    is_high = offset < high_seconds
     effects = dict(spec["high"] if is_high else spec["low"])
-    seconds_left = (
-        int(spec["high_seconds"]) - offset if is_high else period - offset
-    )
+    phase_seconds = high_seconds if is_high else period - high_seconds
+    seconds_left = phase_seconds - offset if is_high else period - offset
     return {
         "name": spec["name"],
         "label": spec["high_label"] if is_high else spec["low_label"],
         "phase": "HIGH" if is_high else "LOW",
+        "period": period,
+        "phase_seconds": phase_seconds,
         "seconds_left": int(seconds_left),
         "solar_multiplier": float(effects.get("solar_multiplier", 1.0)),
         "production_multiplier": float(effects.get("production_multiplier", 1.0)),
         "raid_multiplier": float(effects.get("raid_multiplier", 1.0)),
     }
+
+
+def planet_cycle_average(planet_id: int, start: int, end: int) -> dict[str, float]:
+    """区间 `[start, end)` 内周期系数的**时间加权平均**（离线结算用）。
+
+    "用结算时点的相位乘整个区间"在长离线里是错的——玩家离开 3 小时，相位其实变了好几轮。
+    这里按高/低相位各自占用多少秒做加权，结果仍然只依赖绝对时间，可复算。
+    """
+    spec = PLANET_CYCLES.get(int(planet_id))
+    span = max(0, int(end) - int(start))
+    neutral = {"solar_multiplier": 1.0, "production_multiplier": 1.0, "raid_multiplier": 1.0}
+    if spec is None or span <= 0:
+        return neutral
+
+    period = int(spec["period"])
+    high_seconds = int(spec["high_seconds"])
+    keys = ("solar_multiplier", "production_multiplier", "raid_multiplier")
+    # 整轮部分：每一轮都是"高潮 high_seconds + 低潮 (period - high_seconds)"，先乘好再复用
+    full_rounds, tail = divmod(span, period)
+    total = {
+        key: full_rounds * (
+            float(spec["high"].get(key, 1.0)) * high_seconds
+            + float(spec["low"].get(key, 1.0)) * (period - high_seconds)
+        )
+        for key in keys
+    }
+    # 余数部分：最多跨两个相位，逐段累加到下一个相位边界即可
+    cursor = int(start) + full_rounds * period
+    remaining = tail
+    while remaining > 0:
+        offset = cursor % period
+        step = min(remaining, high_seconds - offset if offset < high_seconds else period - offset)
+        effects = spec["high"] if offset < high_seconds else spec["low"]
+        for key in keys:
+            total[key] += float(effects.get(key, 1.0)) * step
+        cursor += step
+        remaining -= step
+    return {key: round(value / span, 6) for key, value in total.items()}
+
 
 #: 星系法典政令（8 条：消耗文明凝聚力）
 DOCTRINES: dict[str, dict] = {
