@@ -33,6 +33,35 @@ def _tile(**overrides) -> dict:
     return tile
 
 
+async def test_halo_is_split_into_active_and_pending(client, session) -> None:
+    """§10《光环接线状态》：真生效的进 `halo`，只展示的进 `halo_pending`，两者绝不混。
+
+    "看得到但不生效"就是对玩家的假承诺——种一株荧光苔藓（+5 kW，已接线）
+    与一株金刚地衣（装甲 +15%，待接线），接口必须把它们分开交代。
+    """
+    await client.get("/api/v1/colony/state", params={"slot": 1})  # 开局建档
+    await session.rollback()
+    garden = await session.get(GardenState, (1, 0), populate_existing=True)
+    grid = [dict(tile) for tile in (garden.grid_data or [])]
+    # 开局只有中央 3×3 解锁 ⇒ 用"已解锁"的那几格（编号顺序不保证）
+    open_tiles = [tile for tile in grid if tile.get("unlocked")]
+    open_tiles[0].update({"seed_id": "glow_moss", "stage": STAGE_MATURE, "age": 200.0})
+    open_tiles[1].update({"seed_id": "adamant_lichen", "stage": STAGE_MATURE, "age": 200.0})
+    garden.grid_data = grid  # JSON 列整条替换
+    await session.commit()
+
+    data = (await client.get(f"{GARDEN_URL}/state", params={"slot": 1})).json()["data"]
+    assert data["halo"]["power_kw"] == pytest.approx(5.0)
+    assert "vehicle_armor" not in data["halo"]              # 未接线的绝不混进生效数字
+    assert data["halo_pending"]["vehicle_armor"] == pytest.approx(0.15)
+    # 图鉴层面同样分家：金刚地衣是"待接线"那一栏里的
+    assert data["plants"]["glow_moss"]["halo"] == {"power_kw": 5.0}
+    assert data["plants"]["adamant_lichen"]["halo"] == {}
+    assert data["plants"]["adamant_lichen"]["halo_pending"] == {"vehicle_armor": 0.15}
+    # 接线名单由 balance 单点声明（接口按它分类，前端不自己判断）
+    assert set(data["halo"]).issubset(set(B.GARDEN_HALO_ACTIVE_KEYS))
+
+
 class TestGrowthEngine:
     def test_stage_progression_per_90_seconds(self):
         assert stage_for_age(0) == STAGE_SEEDLING

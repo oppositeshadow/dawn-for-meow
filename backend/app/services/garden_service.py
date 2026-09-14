@@ -73,6 +73,10 @@ async def state_view(
     grid = [dict(tile) for tile in (garden.grid_data or [])]
     codex = list(garden.unlocked_seed_ids or [])
     halo = halo_summary(grid, plants)
+    # 光环分两类：真的在结算的（`halo`）与**只展示**的（`halo_pending`）——
+    # 界面上混在一起就是"看得到但不生效"的假承诺（《数值平衡表》§10 光环接线状态）
+    halo_active = {k: v for k, v in halo.items() if k in B.GARDEN_HALO_ACTIVE_KEYS}
+    halo_pending = {k: v for k, v in halo.items() if k not in B.GARDEN_HALO_ACTIVE_KEYS}
     return {
         "grid_size": int(garden.grid_size),
         "unlocked_cells": int(garden.unlocked_cells),
@@ -94,7 +98,8 @@ async def state_view(
             }
             for tile in grid
         ],
-        "halo": {key: round(value, 4) for key, value in halo.items()},
+        "halo": {key: round(value, 4) for key, value in halo_active.items()},
+        "halo_pending": {key: round(value, 4) for key, value in halo_pending.items()},
         "codex": codex,
         "codex_total": len(plants),
         "codex_papers": dict(garden.codex_papers or {}),
@@ -103,7 +108,12 @@ async def state_view(
                 "name": spec["name"],
                 "school": spec["school"],
                 "harvest": spec["harvest"],
-                "halo": spec.get("halo", {}),
+                "halo": {
+                    k: v for k, v in (spec.get("halo") or {}).items() if k in B.GARDEN_HALO_ACTIVE_KEYS
+                },
+                "halo_pending": {
+                    k: v for k, v in (spec.get("halo") or {}).items() if k not in B.GARDEN_HALO_ACTIVE_KEYS
+                },
                 "growth_multiplier": spec.get("growth_multiplier", 1.0),
                 "unlocked": plant_id in codex,
             }

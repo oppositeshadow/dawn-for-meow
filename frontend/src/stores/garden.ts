@@ -25,7 +25,10 @@ export interface GardenStateView {
   auto_protect_unknown: boolean
   last_tick_time: number
   grid: GardenTile[]
+  /** 真的在结算的在田光环（§10 接线状态） */
   halo: Record<string, number>
+  /** 只展示、尚未接线的光环（界面必须标「待接线」，不能混进生效数字） */
+  halo_pending: Record<string, number>
   codex: string[]
   codex_total: number
   codex_papers: Record<
@@ -39,6 +42,7 @@ export interface GardenStateView {
       school: string
       harvest: Record<string, number>
       halo: Record<string, number>
+      halo_pending: Record<string, number>
       growth_multiplier: number
       unlocked: boolean
     }

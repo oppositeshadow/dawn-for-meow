@@ -803,6 +803,11 @@ GARDEN_MEDIA: dict[str, dict] = {
 GARDEN_HALO_GLOW_MOSS_KW = 5.0                       # 荧光苔藓 +5 kW/株
 GARDEN_HALO_ADAMANT_LICHEN_ARMOR_BONUS = 0.15        # 金刚地衣 装甲 +15%
 GARDEN_GOLDEN_GRASS_BLACK_MARKET_PRICE = 200.0       # 黄金草 200 算力币/株
+#: 猫草在田光环里**真的接入结算**的键（《数值平衡表》§10《光环接线状态》）。
+#: 其余键（`breeding_rate_cap_bonus` / `vehicle_armor` / `decoy_cost_discount` / `patrol_delay`）目前只展示，
+#: 接口必须把它们单独放进 `halo_pending` 并在界面上标注「待接线」——**绝不混进生效数字**
+#: （"看得到但不生效"就是对玩家的假承诺）。接线后把键移到这里即可，前端不用改。
+GARDEN_HALO_ACTIVE_KEYS: tuple[str, ...] = ("power_kw", "suspicion_per_sec")
 #: 逐格扩建成本（编码落地补充：数值平衡表 §10 只规定"每次 +1 格"，成本沿用设施曲线形状）
 GARDEN_EXPANSION_BASE_COST: dict[str, float] = {"scrap": 15.0}
 GARDEN_EXPANSION_GROWTH = 1.15

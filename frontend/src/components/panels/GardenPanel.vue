@@ -53,8 +53,22 @@ function haloText(): string {
   const parts: string[] = []
   if (halo.power_kw) parts.push(`+${halo.power_kw} kW`)
   if (halo.suspicion_per_sec) parts.push(`警戒 ${halo.suspicion_per_sec}/s`)
-  if (halo.vehicle_armor) parts.push(`装甲 +${Math.round(halo.vehicle_armor * 100)}%`)
   return parts.join(' · ') || '暂无在田光环'
+}
+
+/** 未接线的在田光环（§10 接线状态）：如实标「待接线」，不能和生效数字混在一起 */
+function haloPendingText(): string | null {
+  const halo = view.value?.halo_pending ?? {}
+  const labels: Record<string, (value: number) => string> = {
+    vehicle_armor: (value) => `载具装甲 +${Math.round(value * 100)}%`,
+    breeding_rate_cap_bonus: (value) => `繁育上限 +${Math.round(value * 100)}%`,
+    decoy_cost_discount: (value) => `诱饵造价 −${Math.round(value * 100)}%`,
+    patrol_delay: (value) => `敌方巡逻延迟 +${Math.round(value * 100)}%`,
+  }
+  const parts = Object.entries(halo)
+    .filter(([, value]) => value !== 0)
+    .map(([key, value]) => labels[key]?.(value) ?? `${key} ${value}`)
+  return parts.length ? `待接线：${parts.join(' · ')}` : null
 }
 
 function costText(cost: Record<string, number>): string {
@@ -136,6 +150,8 @@ function costText(cost: Record<string, number>): string {
           <span class="text-terminal-dim">在田光环</span>
           <span>{{ haloText() }}</span>
         </div>
+        <!-- 未接线光环如实标注（§10）：显示但不生效的东西必须说明白，不能混进上面的生效数字 -->
+        <div v-if="haloPendingText()" class="text-[10px] text-terminal-warn/80">{{ haloPendingText() }}</div>
         <div class="text-[10px] text-terminal-dim">
           图鉴：{{ view?.codex.map((id) => view?.plants[id]?.name).join('、') || '—' }}
         </div>
