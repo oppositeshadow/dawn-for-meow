@@ -204,6 +204,8 @@ const offlineSummary = computed(() => {
     cats: report.gained_cats,
     alloys: report.gained_alloys ?? 0,
     batches: report.smelted_batches ?? 0,
+    unity: report.gained_unity ?? 0,
+    research: report.research ?? null,
     starved: report.is_starved,
     capped: report.is_capped,
     overflowed: report.overflowed_resources,
@@ -408,6 +410,11 @@ onMounted(bootstrap)
           <span class="text-terminal-dim">（电炉 {{ offlineSummary.batches }} 炉次）</span>
         </li>
         <li>新出生猫口：{{ offlineSummary.cats }}</li>
+        <li v-if="offlineSummary.unity > 0">文明凝聚力：+{{ offlineSummary.unity.toFixed(2) }}</li>
+        <li v-if="offlineSummary.research">
+          科研：{{ offlineSummary.research?.unlocked ? '已解锁' : '推进中' }}
+          【{{ offlineSummary.research?.tech_name }}】
+        </li>
       </ul>
       <p v-if="offlineSummary.starved" class="text-terminal-crit">
         离线期间发生过断粮：拾荒/科研/踩轮产出锁死，繁育进度倒退，农夫猫靠 30% 求生本能翻野草。

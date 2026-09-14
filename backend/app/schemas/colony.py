@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -107,6 +109,9 @@ class OfflineReport(BaseModel):
     charged_kwh: float = 0.0
     smelted_batches: float = 0.0
     gained_alloys: float = 0.0
+    #: 离线期间的科技进展（`{tech_name, unlocked, progress, cost}`）与凝聚力收入
+    research: dict[str, Any] | None = None
+    gained_unity: float = 0.0
     clock_anomaly: bool = False
     birth_progress: float = 0.0
     notes: list[str] = Field(default_factory=list)

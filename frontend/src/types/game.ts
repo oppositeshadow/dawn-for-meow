@@ -85,6 +85,9 @@ export interface OfflineReport {
   /** 熔炼（《数值平衡表》§3.5）：本段离线炼了几炉、产出多少合金 */
   smelted_batches: number
   gained_alloys: number
+  /** 离线期间的科技进展（解锁了哪个节点）与凝聚力收入（《数值平衡表》§15.1） */
+  research: { tech_name: string; unlocked: boolean; progress: number; cost: number } | null
+  gained_unity: number
   clock_anomaly: boolean
   birth_progress: number
   notes: string[]

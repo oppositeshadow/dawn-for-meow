@@ -45,6 +45,11 @@ description: 《喵星破晓》(Dawn for Meow) 本项目的开发流程清单—
 
 ### 三·四、"白名单登记 ≠ 接线"（自查清单）
 
+> **顺带记住"新字段要三处同步"**：引擎里写了新字段 ≠ 接口能看到。必须同时改
+> ① `offline_engine.build_report_summary`（或对应裁剪函数）② `schemas/*.py`（Pydantic 会**静默丢弃**未声明字段）
+> ③ 前端 `types/game.ts` 与渲染层。这个坑已经踩过 5 次（`launch_silo` / `smelted_batches` / `gained_alloys` /
+> `research` / `gained_unity`），每次症状都一样：代码写了、日志有数、接口里查无此字段。
+
 把某个效果键写进 `WIRED_EFFECTS` / `TECH_ACTIVE_EFFECT_KEYS` **只是登记，不等于它真的参与结算**。
 接线完成的唯一证据是：**引擎里有一处 `get_*_effects()` 的返回值被乘/加进公式**，并且**有用例证明数字变了**。
 

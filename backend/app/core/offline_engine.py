@@ -490,6 +490,9 @@ def build_report_summary(report: Mapping[str, Any]) -> dict[str, Any]:
         # 熔炼（§3.5）：炉次数与合金产出，面板与测试都靠它核对
         "smelted_batches": report.get("smelted_batches", 0.0),
         "gained_alloys": report.get("gained_alloys", 0.0),
+        # 离线期间的科技进展与凝聚力（《数值平衡表》§15.1）：玩家回来最想知道"研究完成了什么"
+        "research": report.get("research"),
+        "gained_unity": round(_num(report.get("gained_unity")), PROGRESS_PRECISION),
         "clock_anomaly": bool(report.get("clock_anomaly", False)),
         "birth_progress": final.get("birth_progress", 0.0),
         "notes": list(report.get("notes", [])),
