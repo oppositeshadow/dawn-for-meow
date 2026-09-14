@@ -28,6 +28,16 @@ export interface PlanetView {
     catnip_multiplier: number
     output_bonus: Record<string, number>
   }
+  /** 星球周期（《数值平衡表》§15.5）：当期事件、相位与剩余秒数 */
+  cycle: {
+    name: string
+    label: string
+    phase: 'HIGH' | 'LOW' | 'NEUTRAL'
+    seconds_left: number
+    solar_multiplier: number
+    production_multiplier: number
+    raid_multiplier: number
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

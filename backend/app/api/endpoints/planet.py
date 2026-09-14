@@ -67,6 +67,8 @@ async def get_planet_state(
                     "biome_tag": row.biome_tag,
                     "logistics_routes": list(row.logistics_routes or []),
                     "traits": B.planet_traits(row.planet_id),
+                    # 星球周期（§15.5）：前端据此显示"岩浆潮汐 · 高潮（还剩 X 分钟）"
+                    "cycle": B.planet_cycle(row.planet_id, now_timestamp()),
                 }
                 for row in rows
             ],

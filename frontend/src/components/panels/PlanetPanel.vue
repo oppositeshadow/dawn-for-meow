@@ -4,7 +4,7 @@ import { Orbit, Rocket } from 'lucide-vue-next'
 
 import Badge from '@/components/common/Badge.vue'
 import { useColonyStore } from '@/stores/colony'
-import { usePlanetStore } from '@/stores/planet'
+import { usePlanetStore, type PlanetView } from '@/stores/planet'
 
 const colony = useColonyStore()
 const planet = usePlanetStore()
@@ -29,6 +29,24 @@ const unlocked = computed(() => planet.planets.filter((item) => item.unlocked &&
 function eta(route: { arrives_at: number }): string {
   const left = route.arrives_at - now.value
   return left <= 0 ? '即将抵达' : `${left} 秒`
+}
+
+/** 星球周期文案：`岩浆潮汐 · 高潮（还剩 4 分钟）`（§15.5） */
+function cycleText(cycle: PlanetView['cycle']): string | null {
+  if (!cycle || !cycle.name) return null
+  const left = Math.max(0, cycle.seconds_left)
+  const time = left >= 60 ? `${Math.ceil(left / 60)} 分钟` : `${left} 秒`
+  return `${cycle.name} · ${cycle.label}（还剩 ${time}）`
+}
+
+/** 当期正/负效果提示：让玩家知道"现在适合干什么" */
+function cycleEffectText(cycle: PlanetView['cycle']): string | null {
+  if (!cycle || !cycle.name) return null
+  const parts: string[] = []
+  if (cycle.solar_multiplier !== 1) parts.push(`发电 ×${cycle.solar_multiplier}`)
+  if (cycle.production_multiplier !== 1) parts.push(`产出 ×${cycle.production_multiplier}`)
+  if (cycle.raid_multiplier !== 1) parts.push(`被劫掠 ×${cycle.raid_multiplier}`)
+  return parts.join('｜') || null
 }
 
 // 星球性格（后端 planet_traits 透出）：只展示，不在这里算系数
@@ -74,6 +92,10 @@ function traitText(traits: { capacity_multiplier: number; catnip_multiplier: num
         </div>
         <p v-if="item.biome_tag" class="text-[10px] text-terminal-dim">{{ item.biome_tag }}</p>
         <p v-if="item.planet_id !== 0" class="text-[10px] text-terminal-warn/80">{{ traitText(item.traits) }}</p>
+        <p v-if="cycleText(item.cycle)" class="text-[10px] text-terminal-accent/80">
+          {{ cycleText(item.cycle) }}
+          <span v-if="cycleEffectText(item.cycle)" class="text-terminal-dim">｜{{ cycleEffectText(item.cycle) }}</span>
+        </p>
         <div v-if="item.logistics_routes.length" class="space-y-0.5 text-[10px] text-terminal-dim">
           <div v-for="route in item.logistics_routes" :key="route.route_id">
             在途：{{ route.cat_count }} 只猫 · {{ eta(route) }}
