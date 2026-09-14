@@ -48,6 +48,12 @@ async def _air_defense_bonus(session, slot_id: int) -> float:
     totals = await doctrine_service.active_effects(session, slot_id)
     return round(max(0.0, float(totals.get("air_defense", 0.0))), 4)
 
+
+async def _escort_shield_bonus(session, slot_id: int, planet_id: int) -> float:
+    """无人机群领航官的护航护盾加成（《数值平衡表》§15.1：把"防御战力"落到护盾上）。"""
+    bucket = await session.get(LaborBucket, (slot_id, planet_id, "fleet_commander"))
+    return B.fleet_commander_shield_bonus(int(bucket.cat_count) if bucket else 0)
+
 RESOURCE_PRECISION = 2
 
 
@@ -743,6 +749,7 @@ async def ambush_convoy(
         attacker_dps_bonus=dps_bonus,
         attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
         attacker_air_defense=await _air_defense_bonus(session, slot_id),
+        attacker_shield_bonus=await _escort_shield_bonus(session, slot_id, planet_id),
         defender_stun_rounds=stun_rounds,
     )
     won = result["winner"] == "ATTACK"
@@ -902,6 +909,7 @@ async def intercept_alert(
         attacker_morale=morale_multiplier(catnip_ratio),
         attacker_armor_bonus=await _fleet_armor_bonus(session, slot_id, planet_id),
         attacker_air_defense=await _air_defense_bonus(session, slot_id),
+        attacker_shield_bonus=await _escort_shield_bonus(session, slot_id, planet_id),
     )
     won = result["winner"] == "ATTACK"
     now = now_timestamp()

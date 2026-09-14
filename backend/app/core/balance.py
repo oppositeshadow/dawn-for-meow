@@ -914,6 +914,16 @@ def terraformer_repair_factor(count: int) -> float:
     factor = 1.0 - TERRAFORMER_WEAR_REDUCTION_PER_CAT * max(0, int(count))
     return round(max(TERRAFORMER_WEAR_FLOOR, factor), 4)
 
+
+#: 无人机群领航官（§15.1）：无人机群为舰队**护航**，每只 +5% 护盾（封顶 5 只 = +25%）
+FLEET_COMMANDER_SHIELD_PER_CAT = 0.05
+
+
+def fleet_commander_shield_bonus(count: int) -> float:
+    """护航护盾加成（加性、封顶 25%）——把"该星球防御战力 +15%"落到可结算的护盾上。"""
+    capped = min(max(0, int(count)), int(STAR_JOB_LIMITS["fleet_commander"]))
+    return round(FLEET_COMMANDER_SHIELD_PER_CAT * capped, 4)
+
 #: 星系法典政令（8 条：消耗文明凝聚力）
 DOCTRINES: dict[str, dict] = {
     "sunbath_3pm": {"name": "下午三点晒太阳协议", "cost": 200.0, "effect": {"production": 0.20}},

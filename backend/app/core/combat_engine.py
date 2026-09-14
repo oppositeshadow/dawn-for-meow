@@ -167,6 +167,7 @@ def resolve_skirmish(
     attacker_dps_bonus: float = 0.0,
     attacker_armor_bonus: float = 0.0,
     attacker_air_defense: float = 0.0,
+    attacker_shield_bonus: float = 0.0,
     defender_stun_rounds: int = 0,
     max_rounds: int = B.COMBAT_MAX_ROUNDS,
 ) -> dict[str, Any]:
@@ -183,6 +184,11 @@ def resolve_skirmish(
             unit["armor"] = float(unit.get("armor", 0.0)) * factor
             if "armor_max" in unit:
                 unit["armor_max"] = float(unit["armor_max"]) * factor
+    # 无人机群领航官的护航：全军护盾 ×(1 + 加成)（§15.1，加性、封顶 25%）
+    if attacker_shield_bonus:
+        shield_factor = 1.0 + float(attacker_shield_bonus)
+        for unit in attackers:
+            unit["shield"] = float(unit.get("shield", 0.0)) * shield_factor
     for unit in attackers:
         unit["morale"] = attacker_morale
         if attacker_dps_bonus:
