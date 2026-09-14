@@ -417,6 +417,21 @@ STAR_ROUTE_RAID_DELAY_SECONDS = 600.0
 #: 跨星航线可随船携带的物资（§15.3 落地补充：外星球从 0 起步，没有"手点废墟"，
 #: 若不能运物资则永远造不出第一座纸箱窝 ⇒ 外星球死锁）
 STAR_ROUTE_CARGO_PER_TRIP: dict[str, float] = {"scrap": 60.0}
+
+#: 星际物流调度官（§15.1）：每只 +20% 航线吞吐（**货舱容量**口径）、−10% 被劫掠概率（下限 0）
+LOGISTICS_THROUGHPUT_PER_OFFICER = 0.20
+LOGISTICS_RAID_REDUCTION_PER_OFFICER = 0.10
+
+
+def logistics_cargo_capacity(officers: int, base: float) -> float:
+    """随船物资的单趟上限：`base × (1 + 0.20 × 调度官数)`。"""
+    return round(base * (1.0 + LOGISTICS_THROUGHPUT_PER_OFFICER * max(0, int(officers))), 2)
+
+
+def logistics_raid_chance(officers: int, base: float) -> float:
+    """被劫掠概率：`base × (1 − 0.10 × 调度官数)`，下限 0（不会变成负概率）。"""
+    factor = max(0.0, 1.0 - LOGISTICS_RAID_REDUCTION_PER_OFFICER * max(0, int(officers)))
+    return round(max(0.0, base * factor), 6)
 #: 三颗星球各自的承载力系数（§15.3：熔岩星难住人 / 冰卫星中庸 / 星带能塞猫）
 STAR_PLANET_CAPACITY_MULTIPLIER: dict[int, float] = {1: 0.8, 2: 0.9, 3: 1.2}
 #: 三颗星球各自的产粮系数（§15.3：熔岩星种不活、冰卫星靠温室、星带勉强够吃）

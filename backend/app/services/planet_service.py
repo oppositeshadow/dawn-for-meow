@@ -84,14 +84,22 @@ async def migrate_cats(
         )
 
     shipped: dict[str, float] = {}
+    officer_bucket = await session.get(LaborBucket, (slot_id, B.HOME_PLANET_ID, "logistics"))
+    officer_count = int(officer_bucket.cat_count) if officer_bucket else 0
     for resource, amount in (cargo or {}).items():
         if resource not in B.STAR_ROUTE_CARGO_PER_TRIP:
             raise BadRequest("BAD_REQUEST", f"航线暂不支持运送 {resource}")
         if amount <= 0:
             continue
-        limit = float(B.STAR_ROUTE_CARGO_PER_TRIP[resource])
+        # 吞吐：星际物流调度官每只 +20% 货舱容量（§15.1）
+        limit = B.logistics_cargo_capacity(officer_count, float(B.STAR_ROUTE_CARGO_PER_TRIP[resource]))
         if amount > limit:
-            raise BadRequest("BAD_REQUEST", f"单趟最多运 {limit:g} {resource}，收到 {amount:g}")
+            raise BadRequest(
+                "BAD_REQUEST",
+                f"单趟最多运 {limit:g} {resource}（基础 {B.STAR_ROUTE_CARGO_PER_TRIP[resource]:g}"
+                f"＋调度官 {officer_count} 只 +{int(B.LOGISTICS_THROUGHPUT_PER_OFFICER * 100 * officer_count)}%）"
+                f"，收到 {amount:g}",
+            )
         if float(getattr(source, resource)) < amount:
             raise InsufficientResource(
                 detail=f"母星只有 {float(getattr(source, resource)):g} {resource}，不足以运出 {amount:g}"
@@ -147,7 +155,13 @@ async def settle_routes(
     stamped = now if now is not None else now_timestamp()
     boss = await session.get(BossState, slot_id)
     rage = float(boss.rage) if boss else 0.0
-    chance = B.STAR_ROUTE_RAID_CHANCE * (2 if rage >= B.STAR_ROUTE_RAID_RAGE_THRESHOLD else 1)
+    # 星际物流调度官：每只在岗 −10% 被劫掠概率（§15.1），与"愤怒翻倍"相乘后总体下限 0
+    officers = (await session.get(LaborBucket, (slot_id, B.HOME_PLANET_ID, "logistics")))
+    officer_count = int(officers.cat_count) if officers else 0
+    chance = B.logistics_raid_chance(
+        officer_count,
+        B.STAR_ROUTE_RAID_CHANCE * (2 if rage >= B.STAR_ROUTE_RAID_RAGE_THRESHOLD else 1),
+    )
 
     events: list[dict[str, Any]] = []
     rows = (
