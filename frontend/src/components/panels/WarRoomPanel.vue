@@ -228,6 +228,22 @@ const tacticalLabel: Record<string, string> = {
         </div>
       </div>
 
+      <!-- 最近一场交战（可回看，不必去终端里翻） -->
+      <div v-if="military.lastBattle" class="space-y-1 border-t border-terminal-line pt-2">
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="text-terminal-dim">最近一场交战</span>
+          <span>{{ military.lastBattle.title }}</span>
+          <Badge
+            :text="military.lastBattle.won ? '胜' : '败'"
+            :tone="military.lastBattle.won ? 'accent' : 'crit'"
+          />
+          <span class="ml-auto text-[10px] text-terminal-dim">共 {{ military.lastBattle.rounds }} 回合</span>
+        </div>
+        <div class="max-h-24 space-y-0.5 overflow-auto font-mono text-[10px] text-terminal-dim">
+          <div v-for="(line, index) in military.lastBattle.log" :key="index">{{ line }}</div>
+        </div>
+      </div>
+
       <!-- 急救舱 -->
       <div v-if="(view?.hospital_queue.length ?? 0) > 0" class="space-y-1 border-t border-terminal-line pt-2">
         <div class="text-[11px] text-terminal-dim">急救舱（绝无死猫）</div>

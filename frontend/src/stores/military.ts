@@ -25,6 +25,8 @@ export const useMilitaryStore = defineStore('military', () => {
   const colony = useColonyStore()
   const facilitiesStore = useFacilitiesStore()
   const hangar = ref<HangarView | null>(null)
+  /** 最近一场交战（伏击 / 拦截 / 决战）：留在面板里可回看，终端刷过去就找不回来了 */
+  const lastBattle = ref<{ title: string; won: boolean; rounds: number; log: string[]; at: number } | null>(null)
   const busy = ref(false)
   const now = ref(Math.floor(Date.now() / 1000))
   let pollTimer: number | null = null
@@ -236,6 +238,13 @@ export const useMilitaryStore = defineStore('military', () => {
   function logBattle(data: Record<string, any>, tone: 'info' | 'warn' | 'crit') {
     const lines = (data.log ?? []) as string[]
     if (lines.length === 0) return
+    lastBattle.value = {
+      title: String(data.target_name ?? data.enemy ?? data.stage_name ?? '交战'),
+      won: Boolean(data.won),
+      rounds: Number(data.rounds ?? 0),
+      log: lines,
+      at: Math.floor(Date.now() / 1000),
+    }
     colony.log(`── 交战过程（共 ${data.rounds ?? '?'} 回合，末尾 ${Math.min(4, lines.length)} 回合）──`, 'info')
     for (const line of lines.slice(-4)) colony.log(`　${line}`, tone)
   }
@@ -325,6 +334,7 @@ export const useMilitaryStore = defineStore('military', () => {
 
   return {
     hangar,
+    lastBattle,
     busy,
     now,
     idleVehicles,
