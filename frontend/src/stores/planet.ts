@@ -13,6 +13,8 @@ export interface LogisticsRoute {
   departed_at: number
   arrives_at: number
   raided: boolean
+  /** 被劫掠的原因说明（§15.6：来袭期穿越星带 + 去哪研究观测科技）；未遭劫掠时不存在 */
+  raid_note?: string
 }
 
 export interface PlanetView {
@@ -28,19 +30,22 @@ export interface PlanetView {
     catnip_multiplier: number
     output_bonus: Record<string, number>
   }
-  /** 星球周期（《数值平衡表》§15.5）：当期事件、相位与剩余秒数 */
+  /**
+   * 星球周期（《数值平衡表》§15.5/§15.6）：按**监测档位**由后端裁剪。
+   * L0（未点亮观测科技）整块为 `null`，L1 只有相位与系数，L2 才有倒计时与进度条。
+   */
   cycle: {
     name: string
     label: string
     phase: 'HIGH' | 'LOW' | 'NEUTRAL'
     /** 整轮秒数与当前相位长度（后端 `balance.PLANET_CYCLES` 口径，前端只用来画进度条） */
-    period: number
-    phase_seconds: number
-    seconds_left: number
+    period?: number
+    phase_seconds?: number
+    seconds_left?: number
     solar_multiplier: number
     production_multiplier: number
     raid_multiplier: number
-  }
+  } | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

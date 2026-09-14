@@ -32,12 +32,21 @@ function eta(route: { arrives_at: number }): string {
   return left <= 0 ? '即将抵达' : `${left} 秒`
 }
 
-/** 星球周期文案：`岩浆潮汐 · 高潮（还剩 4 分钟）`（§15.5） */
+/** 星球周期文案：`岩浆潮汐 · 高潮（还剩 4 分钟）`（§15.5）；L1 观测档没有倒计时，只报相位（§15.6） */
 function cycleText(cycle: PlanetView['cycle']): string | null {
   if (!cycle || !cycle.name) return null
+  if (cycle.seconds_left === undefined) return `${cycle.name} · ${cycle.label}`
   const left = Math.max(0, cycle.seconds_left)
   const time = left >= 60 ? `${Math.ceil(left / 60)} 分钟` : `${left} 秒`
   return `${cycle.name} · ${cycle.label}（还剩 ${time}）`
+}
+
+/** 相位进度条（§15.6）：只有 L2 预报档才有相位长度，L0/L1 返回 null ⇒ 不画 */
+function cycleProgress(cycle: PlanetView['cycle']): { value: number; max: number } | null {
+  const span = cycle?.phase_seconds
+  if (!cycle?.name || !span) return null
+  const done = span - (cycle.seconds_left ?? 0)
+  return { value: Math.max(0, Math.min(span, done)), max: span }
 }
 
 /** 当期正/负效果提示：让玩家知道"现在适合干什么" */
@@ -105,17 +114,19 @@ function traitText(traits: { capacity_multiplier: number; catnip_multiplier: num
           {{ cycleText(item.cycle) }}
           <span v-if="cycleEffectText(item.cycle)" class="text-terminal-dim">｜{{ cycleEffectText(item.cycle) }}</span>
         </p>
-        <!-- 相位进度条：只画"这段潮走了多少"，不替玩家判断好坏（同一相位在三颗星利弊不同） -->
+        <!-- 相位进度条（§15.5/§15.6，观测档 L2 才出现）：只画"这段潮走了多少"，不替玩家判断好坏 -->
         <GaugeBar
-          v-if="item.cycle.phase_seconds > 0"
-          :value="item.cycle.phase_seconds - item.cycle.seconds_left"
-          :max="item.cycle.phase_seconds"
+          v-if="cycleProgress(item.cycle)"
+          :value="cycleProgress(item.cycle)?.value ?? 0"
+          :max="cycleProgress(item.cycle)?.max ?? 1"
           :height="3"
         />
         <div v-if="item.logistics_routes.length" class="space-y-0.5 text-[10px] text-terminal-dim">
           <div v-for="route in item.logistics_routes" :key="route.route_id">
             在途：{{ route.cat_count }} 只猫 · {{ eta(route) }}
             <span v-if="route.raided" class="text-terminal-crit">（遭劫掠，延误中，猫一只不少）</span>
+            <!-- 被劫掠的原因与解锁指引（§15.6）：没点观测科技的玩家也能看见因果 -->
+            <div v-if="route.raid_note" class="text-terminal-crit/80">{{ route.raid_note }}</div>
           </div>
         </div>
       </div>

@@ -290,11 +290,32 @@ async def test_debris_storm_turns_calm_route_into_raided(client, session, monkey
     await _write_routes(session, [_star_route(route_id, arrives_at=CALM_NOW - 1)])
     calm_events = await planet_service.settle_routes(session, 1, now=CALM_NOW)
     assert [event["type"] for event in calm_events] == ["ROUTE_ARRIVED"]
+    assert calm_events[0].get("note", "") == ""  # 平静相位不编理由（交付事件本来也不带 note）
 
     # 同一 route_id（哈希完全一样）落在来袭相位 ⇒ 概率 ×2 ⇒ 被判劫掠
     await _write_routes(session, [_star_route(route_id, arrives_at=STORM_NOW - 1)])
     storm_events = await planet_service.settle_routes(session, 1, now=STORM_NOW)
     assert [event["type"] for event in storm_events] == ["ROUTE_RAIDED"]
+    # §15.6 事后点名：说清原因（碎星流来袭 ×2）并指向解锁观测能力的科技（铁律 11 同款要求）
+    note = storm_events[0]["note"]
+    assert "碎星流" in note and "×2" in note
+    assert "暗区短波穿透电台" in note
+    await session.commit()
+    assert (await _routes(session, planet_id=1))[0]["raid_note"] == note  # 在途那行也能看到
+
+
+async def test_route_arrival_lands_in_offline_report(client, session, monkeypatch) -> None:
+    """航线到货要进《离线休整报表》：读档时结算的"不在场事件"不能凭空消失（skill §6）。"""
+    await _boot(client, session, cats=4)
+    await client.get(LOAD_URL, params={"slot": 1, "planet_id": 1})
+    monkeypatch.setattr(B, "STAR_ROUTE_RAID_CHANCE", 0.0)  # 必定安全抵达
+    await _write_routes(
+        session,
+        [dict(_star_route("route_3_1_report", arrives_at=CALM_NOW - 1), cargo={"scrap": 30.0})],
+    )
+    data = (await client.get(STATE_URL, params={"slot": 1})).json()["data"]
+    notes = " ".join(data["offline_report"]["notes"])
+    assert "跨星航线抵达【二号星·极热熔岩铸造星】：1 只猫 + 机械废铁 ×30" in notes
 
 
 async def test_raided_route_arrives_after_delay_even_with_unchanged_chance(

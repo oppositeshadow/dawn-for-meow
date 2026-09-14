@@ -768,8 +768,11 @@ async def load_state(
     # 在途航线到点即交付（§15.3 第②步）：读档时一并结算，避免"必须打开星图才到货"
     from app.services import planet_service
 
-    await planet_service.settle_routes(session, save.slot_id, now=now)
+    route_events = await planet_service.settle_routes(session, save.slot_id, now=now)
     report, colony, facilities, labor = await settle_offline(session, save, target_planet, now=now)
+    # 航线到货 / 被劫掠也在"玩家不在场时发生"，一并进《离线休整报表》（§15.6）
+    for line in planet_service.describe_route_events(route_events):
+        report["notes"].append(line)
     hangar = await get_hangar_capacity(session, slot_id, target_planet)
     military = await get_military(session, slot_id, target_planet)
     boss_row = await session.get(BossState, slot_id)

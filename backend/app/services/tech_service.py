@@ -121,6 +121,24 @@ async def unlocked_effects(
     return {key: round(value, 4) for key, value in totals.items()}
 
 
+async def planet_cycle_reveal_level(
+    session: AsyncSession, slot_id: int, *, planet_id: int = B.HOME_PLANET_ID
+) -> int:
+    """潮汐监测档位（《数值平衡表》§15.6）：0 = 看不见 / 1 = 当前相位 / 2 = 再加倒计时。
+
+    观测能力挂在母星**既有两个节点**上（`B.PLANET_CYCLE_REVEAL_TECHS` 按档位顺序声明），
+    阶梯式判定：低档没点亮时高档不算（L2 节点的 `parent_ids` 本就含 L1，这里是双保险）。
+    纯读取，0 Token，不影响任何数值统计。
+    """
+    level = 0
+    for tech_id in B.PLANET_CYCLE_REVEAL_TECHS:
+        record = await session.get(TechRecord, (slot_id, planet_id, tech_id))
+        if record is None or record.status != TechStatus.UNLOCKED:
+            break
+        level += 1
+    return level
+
+
 def node_view(
     record: TechRecord,
     *,

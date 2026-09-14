@@ -1039,6 +1039,39 @@ def planet_cycle_average(planet_id: int, start: int, end: int) -> dict[str, floa
     return {key: round(value / span, 6) for key, value in total.items()}
 
 
+#: 潮汐监测的**分档解锁**（《数值平衡表》§15.6）：按档位顺序排列，点亮第 N 个科技即获得第 N 档能力。
+#: 挂**既有节点**（不新增科技节点 ⇒ 科技树节点数与 T3/T4 时间线不变）：
+#: ① 暗区短波穿透电台（T3，4000）→ 能看到"当前是不是来袭"；② 近轨矢量突破导航中枢（T4，13000）→ 再加倒计时。
+PLANET_CYCLE_REVEAL_TECHS: tuple[str, ...] = (
+    "tech_shortwave_radio",
+    "tech_orbit_navigation_hub",
+)
+
+#: 每一档能看到的字段（§15.6）：0 档（无科技）什么都不给，1 档只有"现在是什么潮"，2 档才有倒计时与相位长度
+PLANET_CYCLE_REVEAL_FIELDS: dict[int, tuple[str, ...]] = {
+    1: ("name", "label", "phase", "solar_multiplier", "production_multiplier", "raid_multiplier"),
+    2: (
+        "name", "label", "phase", "period", "phase_seconds", "seconds_left",
+        "solar_multiplier", "production_multiplier", "raid_multiplier",
+    ),
+}
+
+
+def planet_cycle_view(planet_id: int, now: int, reveal_level: int) -> dict[str, Any] | None:
+    """按**监测档位**裁剪该星球的潮汐信息（`None` = 玩家还看不见，§15.6）。
+
+    裁剪必须在后端做：前端只是"不画"的话，抓一次请求就全看穿了（同"前端只读不算"的纪律）。
+    母星与未登记星球本来就没有潮汐 ⇒ 各档一律返回 `None`。
+    """
+    allowed = PLANET_CYCLE_REVEAL_FIELDS.get(int(reveal_level))
+    if allowed is None:
+        return None
+    full = planet_cycle(planet_id, now)
+    if not full["name"]:
+        return None
+    return {key: full[key] for key in allowed}
+
+
 #: 星系法典政令（8 条：消耗文明凝聚力）
 DOCTRINES: dict[str, dict] = {
     "sunbath_3pm": {"name": "下午三点晒太阳协议", "cost": 200.0, "effect": {"production": 0.20}},

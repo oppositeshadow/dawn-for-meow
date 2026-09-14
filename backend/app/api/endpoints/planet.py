@@ -47,6 +47,11 @@ async def get_planet_state(
     events = await planet_service.settle_routes(session, slot)
     if events:
         await session.commit()
+    # 潮汐监测档位（§15.6）：没点亮【暗区短波穿透电台】的玩家**看不到任何潮汐**——
+    # 裁剪必须发生在后端，前端只是不画的话抓一次请求就全看穿了
+    from app.services import tech_service
+
+    reveal_level = await tech_service.planet_cycle_reveal_level(session, slot)
     rows = (
         await session.execute(
             select(PlanetState).where(PlanetState.slot_id == slot).order_by(PlanetState.planet_id)
@@ -67,8 +72,8 @@ async def get_planet_state(
                     "biome_tag": row.biome_tag,
                     "logistics_routes": list(row.logistics_routes or []),
                     "traits": B.planet_traits(row.planet_id),
-                    # 星球周期（§15.5）：前端据此显示"岩浆潮汐 · 高潮（还剩 X 分钟）"
-                    "cycle": B.planet_cycle(row.planet_id, now_timestamp()),
+                    # 星球周期（§15.5/§15.6）：按监测档位裁剪后的潮汐视图（无科技 = null）
+                    "cycle": B.planet_cycle_view(row.planet_id, now_timestamp(), reveal_level),
                 }
                 for row in rows
             ],

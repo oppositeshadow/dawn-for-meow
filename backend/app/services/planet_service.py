@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import hashlib
 import copy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from sqlalchemy import select
@@ -46,16 +46,63 @@ def raid_chance_for_route(
       （母星恒为 1.0，实际就是"外星球那一端"）：往星带运货会被碎石流刮到，从星带往外运同样要穿过那片区域；
     * 星际物流调度官每只在岗 −10%（最后一步乘，封底 0，§15.1）。
     """
-    raid_factor = max(
-        B.planet_cycle(int(route.get("from_planet", B.HOME_PLANET_ID)), now)["raid_multiplier"],
-        B.planet_cycle(int(route.get("to_planet", B.HOME_PLANET_ID)), now)["raid_multiplier"],
-    )
+    raid_factor = route_raid_factor(route, now)
     base = (
         B.STAR_ROUTE_RAID_CHANCE
         * (2.0 if rage >= B.STAR_ROUTE_RAID_RAGE_THRESHOLD else 1.0)
         * float(raid_factor)
     )
     return B.logistics_raid_chance(officer_count, base)
+
+
+def route_raid_factor(route: Mapping[str, Any], now: int) -> float:
+    """该航线当前受**星球周期**影响的劫掠倍率（母星恒 1.0；碎星流「来袭」= 2.0，§15.5）。
+
+    两端取较大者：往星带运货会被碎石流刮到，从星带往外运同样要穿过那片区域。
+    """
+    return max(
+        B.planet_cycle(int(route.get("from_planet", B.HOME_PLANET_ID)), now)["raid_multiplier"],
+        B.planet_cycle(int(route.get("to_planet", B.HOME_PLANET_ID)), now)["raid_multiplier"],
+    )
+
+
+def _tech_name(tech_id: str) -> str:
+    """科技中文名（给玩家的引导文案用；种子是唯一真值，查不到就退回 id）。"""
+    from app.core.seed_loader import tech_defs_planet0
+
+    for item in tech_defs_planet0():
+        if item.get("tech_id") == tech_id:
+            return str(item.get("tech_name") or tech_id)
+    return tech_id
+
+
+def describe_route_events(events: Sequence[Mapping[str, Any]]) -> list[str]:
+    """把航线事件翻成《离线休整报表》文案：到货 / 被劫掠（带原因与解锁指引，§15.6）。
+
+    航线到点是在读档、看星图时结算的 —— 也就是**玩家不在场时发生的事**，
+    不写进报表就等于没发生（skill §6 的"错过成本"检查表）。
+    """
+    lines: list[str] = []
+    for event in events:
+        kind = event.get("type")
+        if kind == "ROUTE_ARRIVED":
+            planet_name = B.PLANETS.get(int(event.get("to_planet", 0)), "目标星球")
+            cargo = event.get("cargo") or {}
+            cargo_text = "、".join(
+                f"{B.RESOURCE_LABELS.get(key, key)} ×{float(value):g}" for key, value in cargo.items()
+            )
+            lines.append(
+                f"跨星航线抵达【{planet_name}】：{int(event.get('cat_count', 0))} 只猫"
+                + (f" + {cargo_text}" if cargo_text else "")
+            )
+        elif kind == "ROUTE_RAIDED":
+            delay_minutes = int(event.get("delay_seconds", 0)) // 60
+            note = str(event.get("note") or "")
+            lines.append(
+                f"跨星航线被劫掠：延误 {delay_minutes} 分钟，猫一只没丢"
+                + (f"；{note}" if note else "")
+            )
+    return lines
 
 
 async def route_slots(session: AsyncSession, slot_id: int, to_planet: int) -> int:
@@ -213,9 +260,24 @@ async def settle_routes(
             ):
                 route["raided"] = True
                 route["arrives_at"] = stamped + int(B.STAR_ROUTE_RAID_DELAY_SECONDS)
+                # 事后点名（§15.6）：没点观测科技的玩家也要能看见因果，并知道去哪解锁
+                factor = route_raid_factor(route, stamped)
+                note = ""
+                if factor > 1.0:
+                    watcher = _tech_name(B.PLANET_CYCLE_REVEAL_TECHS[0])
+                    note = (
+                        f"碎星流·来袭期间穿越星带（被劫掠概率 ×{factor:g}）："
+                        f"研究【{watcher}】就能提前看到潮汐，避开这段"
+                    )
+                    route["raid_note"] = note  # 前端在"在途"那行直接显示
                 pending.append(route)
                 events.append(
-                    {"type": "ROUTE_RAIDED", "route_id": route_id, "delay_seconds": int(B.STAR_ROUTE_RAID_DELAY_SECONDS)}
+                    {
+                        "type": "ROUTE_RAIDED",
+                        "route_id": route_id,
+                        "delay_seconds": int(B.STAR_ROUTE_RAID_DELAY_SECONDS),
+                        "note": note,
+                    }
                 )
                 continue
             target = await session.get(ColonyState, (slot_id, int(route["to_planet"])))
