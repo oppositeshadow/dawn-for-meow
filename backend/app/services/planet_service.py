@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import hashlib
 import copy
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import select
@@ -33,6 +34,28 @@ def is_raided(slot_id: int, route_id: str, *, chance: float) -> bool:
     """确定性判定是否被劫掠（同一趟航线结果唯一，便于复现与测试）。"""
     digest = hashlib.sha256(f"{slot_id}:{route_id}".encode("utf-8")).hexdigest()[:8]
     return int(digest, 16) / 0xFFFFFFFF < chance
+
+
+def raid_chance_for_route(
+    route: Mapping[str, Any], *, now: int, officer_count: int, rage: float
+) -> float:
+    """**一趟航线**当前的被劫掠概率（《数值平衡表》§15.3 + §15.5）。
+
+    * 基础 8%；欧米伽 `rage ≥ 60` 时翻倍（§15.3）；
+    * **星球周期**（§15.5）：碎星流「来袭」相位把该区域的劫掠概率 ×2——两端取**较大者**
+      （母星恒为 1.0，实际就是"外星球那一端"）：往星带运货会被碎石流刮到，从星带往外运同样要穿过那片区域；
+    * 星际物流调度官每只在岗 −10%（最后一步乘，封底 0，§15.1）。
+    """
+    raid_factor = max(
+        B.planet_cycle(int(route.get("from_planet", B.HOME_PLANET_ID)), now)["raid_multiplier"],
+        B.planet_cycle(int(route.get("to_planet", B.HOME_PLANET_ID)), now)["raid_multiplier"],
+    )
+    base = (
+        B.STAR_ROUTE_RAID_CHANCE
+        * (2.0 if rage >= B.STAR_ROUTE_RAID_RAGE_THRESHOLD else 1.0)
+        * float(raid_factor)
+    )
+    return B.logistics_raid_chance(officer_count, base)
 
 
 async def route_slots(session: AsyncSession, slot_id: int, to_planet: int) -> int:
@@ -151,17 +174,18 @@ async def migrate_cats(
 async def settle_routes(
     session: AsyncSession, slot_id: int, *, now: int | None = None
 ) -> list[dict[str, Any]]:
-    """结算所有星球的在途航线：到点交付猫口，被劫掠则延误 10 分钟。"""
+    """结算所有星球的在途航线：到点交付猫口，被劫掠则延误 10 分钟。
+
+    被劫掠判定**每趟只做一次**（首次到点）：命中的船延误 10 分钟，期满照常交付；
+    重复判定会让同一 `route_id` 每 10 分钟再命中一次 ⇒ 船永远到不了（详见下方注释）。
+    """
     stamped = now if now is not None else now_timestamp()
     boss = await session.get(BossState, slot_id)
     rage = float(boss.rage) if boss else 0.0
-    # 星际物流调度官：每只在岗 −10% 被劫掠概率（§15.1），与"愤怒翻倍"相乘后总体下限 0
+    # 星际物流调度官：每只在岗 −10% 被劫掠概率（§15.1）；具体概率按**每条航线**现算
+    # （星球周期会改它：碎星流来袭时 ×2，见 raid_chance_for_route）
     officers = (await session.get(LaborBucket, (slot_id, B.HOME_PLANET_ID, "logistics")))
     officer_count = int(officers.cat_count) if officers else 0
-    chance = B.logistics_raid_chance(
-        officer_count,
-        B.STAR_ROUTE_RAID_CHANCE * (2 if rage >= B.STAR_ROUTE_RAID_RAGE_THRESHOLD else 1),
-    )
 
     events: list[dict[str, Any]] = []
     rows = (
@@ -177,7 +201,16 @@ async def settle_routes(
                 pending.append(route)
                 continue
             route_id = str(route.get("route_id") or "")
-            if is_raided(slot_id, route_id, chance=chance):
+            # 判定**只在第一次到点时做一次**：`is_raided` 的哈希只依赖 (slot, route_id)，
+            # 若每次到点都重判，命中的那趟会每 10 分钟再命中一次 ⇒ "延误 10 分钟"变成永久卡住
+            # （猫和货锁死在途，还白占一条航线带宽）。延误期满 = 照常交付（§15.3 口径）。
+            if not route.get("raided") and is_raided(
+                slot_id,
+                route_id,
+                chance=raid_chance_for_route(
+                    route, now=stamped, officer_count=officer_count, rage=rage
+                ),
+            ):
                 route["raided"] = True
                 route["arrives_at"] = stamped + int(B.STAR_ROUTE_RAID_DELAY_SECONDS)
                 pending.append(route)

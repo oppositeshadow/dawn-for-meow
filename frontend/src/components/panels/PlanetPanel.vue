@@ -50,6 +50,14 @@ function cycleEffectText(cycle: PlanetView['cycle']): string | null {
   return parts.join('｜') || null
 }
 
+/** 迁猫前的风险提示（§15.5）：目标星球正处"被劫掠 ×N"的相位时明说一句，别让玩家静默踩雷 */
+const targetRaidHint = computed(() => {
+  const star = planet.planets.find((item) => item.planet_id === target.value)
+  const cycle = star?.cycle
+  if (!cycle || !cycle.name || cycle.raid_multiplier <= 1) return null
+  return `⚠ ${star?.name ?? '目标星球'}正处于【${cycle.name}·${cycle.label}】：这趟被劫掠概率 ×${cycle.raid_multiplier}，介意就等相位过去再发`
+})
+
 // 星球性格（后端 planet_traits 透出）：只展示，不在这里算系数
 function traitText(traits: { capacity_multiplier: number; catnip_multiplier: number; output_bonus: Record<string, number> }): string {
   const parts = [
@@ -151,6 +159,10 @@ function traitText(traits: { capacity_multiplier: number; catnip_multiplier: num
         <p class="text-[10px] text-terminal-dim">
           出发即离港、单趟 60 秒；在途期间两边都不占工位。被劫掠只延误 10 分钟，猫一只都不会丢。
           外星球从 0 起步、没有废墟可点，第一批必须随船带废铁，否则造不出纸箱窝。
+        </p>
+        <!-- 周期风险提示（§15.5）：只在目标星球正处"被劫掠 ×N"相位时出现，避免静默踩雷 -->
+        <p v-if="targetRaidHint" class="text-[10px] text-terminal-crit">
+          {{ targetRaidHint }}
         </p>
       </div>
     </div>
