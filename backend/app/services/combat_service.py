@@ -361,10 +361,19 @@ async def repair_vehicle(
     for resource, need in cost.items():
         setattr(colony, resource, round(float(getattr(colony, resource)) - need, RESOURCE_PRECISION))
 
-    seconds = B.VEHICLE_REPAIR_BASE_SECONDS * float(spec.get("repair_time_factor", 1.0))
+    # 行星生态塑形师（§15.1）：机器磨损降低 ⇒ 维修更快（每只 −5%，下限基准的 30%）
+    terraformer = await session.get(LaborBucket, (slot_id, planet_id, "terraformer"))
+    wear_factor = B.terraformer_repair_factor(int(terraformer.cat_count) if terraformer else 0)
+    seconds = B.VEHICLE_REPAIR_BASE_SECONDS * float(spec.get("repair_time_factor", 1.0)) * wear_factor
     unit.repair_ends_at = now_timestamp() + int(seconds)
     await session.commit()
-    return {"unit_id": unit_id, "cost_paid": cost, "repair_ends_at": unit.repair_ends_at, "seconds": seconds}
+    return {
+        "unit_id": unit_id,
+        "cost_paid": cost,
+        "repair_ends_at": unit.repair_ends_at,
+        "seconds": seconds,
+        "wear_factor": wear_factor,
+    }
 
 
 async def scrap_vehicle(

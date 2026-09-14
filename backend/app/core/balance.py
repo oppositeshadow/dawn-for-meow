@@ -904,6 +904,16 @@ STAR_JOB_EFFECTS: dict[str, dict] = {
 }
 UNITY_PER_PURR_MASTER_PER_SEC = STAR_JOB_EFFECTS["purr_master"]["unity_per_sec"]
 
+#: 行星生态塑形师（§15.1）：每只让"机器磨损"降低 ⇒ 载具维修更快（−5%/只，最短不低于基准的 30%）
+TERRAFORMER_WEAR_REDUCTION_PER_CAT = 0.05
+TERRAFORMER_WEAR_FLOOR = 0.30
+
+
+def terraformer_repair_factor(count: int) -> float:
+    """载具维修时长系数：`max(30%, 1 − 0.05 × 生态塑形师数)`。"""
+    factor = 1.0 - TERRAFORMER_WEAR_REDUCTION_PER_CAT * max(0, int(count))
+    return round(max(TERRAFORMER_WEAR_FLOOR, factor), 4)
+
 #: 星系法典政令（8 条：消耗文明凝聚力）
 DOCTRINES: dict[str, dict] = {
     "sunbath_3pm": {"name": "下午三点晒太阳协议", "cost": 200.0, "effect": {"production": 0.20}},
