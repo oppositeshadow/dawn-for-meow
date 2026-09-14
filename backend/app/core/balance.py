@@ -935,6 +935,68 @@ def fleet_commander_crit_chance(count: int) -> float:
     capped = min(max(0, int(count)), int(STAR_JOB_LIMITS["fleet_commander"]))
     return round(FLEET_COMMANDER_CRIT_PER_CAT * capped, 4)
 
+
+#: 外星球周期事件（《数值平衡表》§15.5）：按**绝对时间**周期性变化，不需要任何新表
+PLANET_CYCLES: dict[int, dict[str, Any]] = {
+    1: {  # 熔岩星：岩浆潮汐（20 分钟一轮，前 10 分钟高潮）
+        "name": "岩浆潮汐",
+        "period": 1200,
+        "high_seconds": 600,
+        "high_label": "高潮",
+        "low_label": "低潮",
+        "high": {"solar_multiplier": 1.5},
+        "low": {"solar_multiplier": 0.5},
+    },
+    2: {  # 冰卫星：极昼/极夜（40 分钟一轮）
+        "name": "极地日照",
+        "period": 2400,
+        "high_seconds": 1200,
+        "high_label": "极昼",
+        "low_label": "极夜",
+        "high": {"solar_multiplier": 1.5, "production_multiplier": 0.9},
+        "low": {"solar_multiplier": 0.5, "production_multiplier": 1.1},
+    },
+    3: {  # 小行星带：碎星流（30 分钟一轮，前 10 分钟来袭）
+        "name": "碎星流",
+        "period": 1800,
+        "high_seconds": 600,
+        "high_label": "来袭",
+        "low_label": "平静",
+        "high": {"production_multiplier": 1.5, "raid_multiplier": 2.0},
+        "low": {},
+    },
+}
+
+
+def planet_cycle(planet_id: int, now: int) -> dict[str, Any]:
+    """该星球当前的周期阶段（确定性：只依赖绝对时间）。
+
+    返回 `{name, label, phase, seconds_left, solar_multiplier, production_multiplier, raid_multiplier}`；
+    母星与未登记星球返回中性值（全 1.0，`label=""`）。
+    """
+    spec = PLANET_CYCLES.get(int(planet_id))
+    if spec is None:
+        return {
+            "name": "", "label": "", "phase": "NEUTRAL", "seconds_left": 0,
+            "solar_multiplier": 1.0, "production_multiplier": 1.0, "raid_multiplier": 1.0,
+        }
+    period = int(spec["period"])
+    offset = int(now) % period
+    is_high = offset < int(spec["high_seconds"])
+    effects = dict(spec["high"] if is_high else spec["low"])
+    seconds_left = (
+        int(spec["high_seconds"]) - offset if is_high else period - offset
+    )
+    return {
+        "name": spec["name"],
+        "label": spec["high_label"] if is_high else spec["low_label"],
+        "phase": "HIGH" if is_high else "LOW",
+        "seconds_left": int(seconds_left),
+        "solar_multiplier": float(effects.get("solar_multiplier", 1.0)),
+        "production_multiplier": float(effects.get("production_multiplier", 1.0)),
+        "raid_multiplier": float(effects.get("raid_multiplier", 1.0)),
+    }
+
 #: 星系法典政令（8 条：消耗文明凝聚力）
 DOCTRINES: dict[str, dict] = {
     "sunbath_3pm": {"name": "下午三点晒太阳协议", "cost": 200.0, "effect": {"production": 0.20}},

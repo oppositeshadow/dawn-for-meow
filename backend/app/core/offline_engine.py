@@ -68,6 +68,7 @@ def power_balance(
     induction_furnaces: int = 0,
     garden_power_kw: float = 0.0,
     tech_power_kw: float = 0.0,
+    solar_multiplier: float = 1.0,
 ) -> dict[str, Any]:
     """净电力平衡（kW，流量口径，数值平衡表 §7.1）。
 
@@ -76,7 +77,7 @@ def power_balance(
     """
     gen = (
         _int(labor.get("power_runner", 0)) * B.POWER_RUNNER_KW
-        + _int(facilities.get("solar_panel", 0)) * B.SOLAR_PANEL_KW
+        + _int(facilities.get("solar_panel", 0)) * B.SOLAR_PANEL_KW * max(0.0, _num(solar_multiplier, 1.0))
         + _num(garden_power_kw)  # 在田光环：荧光苔藓 +5 kW/株
         + _num(tech_power_kw)  # 已解锁科技的发电量（§6.4 白名单里的 power_kw）
     )
@@ -224,6 +225,8 @@ def calculate_offline_progress(
         induction_furnaces=_int(current_state.get("induction_furnaces", 0)),
         garden_power_kw=garden_power_kw,
         tech_power_kw=tech_power_kw,
+        # 星球周期（§15.5）：熔岩星岩浆潮汐 / 冰卫星极昼极夜影响太阳能出力
+        solar_multiplier=_num(current_state.get("solar_multiplier"), 1.0),
     )
 
     report: dict[str, Any] = {

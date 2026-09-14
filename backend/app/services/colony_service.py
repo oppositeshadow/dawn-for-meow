@@ -299,6 +299,8 @@ def build_engine_state(
     production_multiplier: float = 1.0,
     doctrine_effects: Mapping[str, float] | None = None,
     star_jobs: Mapping[str, float] | None = None,
+    planet_cycle: Mapping[str, Any] | None = None,
+    planet_cycle_factor: float = 1.0,
     catnip_efficiency: float = 0.0,
     tech_power_kw: float = 0.0,
     tech_effects: Mapping[str, float] | None = None,
@@ -361,7 +363,8 @@ def build_engine_state(
             + float((doctrine_effects or {}).get("production_multiplier", 0.0))
             + float((doctrine_effects or {}).get("morale", 0.0))
             + float((star_jobs or {}).get("morale", 0.0))
-        ),
+        )
+        * float(planet_cycle_factor),  # 星球周期（§15.5）：碎星流 +50% / 极夜 +10% 等
         "catnip_efficiency": max(0.0, float(catnip_efficiency)),
         "planet_catnip_multiplier": B.planet_catnip_multiplier(colony.planet_id),
         # 产出系数 = 星球系数 + 专属设施加成（**相加不相乘**，§15.4）
@@ -369,6 +372,8 @@ def build_engine_state(
         + _exclusive_output_bonus(facilities, "scrap"),
         "planet_chips_multiplier": B.planet_output_multiplier(colony.planet_id, "chips")
         + _exclusive_output_bonus(facilities, "chips"),
+        # 星球周期（§15.5）：太阳能出力与产出的当期系数（确定性，只依赖绝对时间）
+        "solar_multiplier": float((planet_cycle or {}).get("solar_multiplier", 1.0)),
         # 高频感应电炉座数（《数值平衡表》§3.5）：电力侧按 −10 kW/座 计，熔炼循环下一步接
         "induction_furnaces": int(facilities.get("induction_furnace", 0)),
         # 熔炼速度加成（§3.5）：科技 smelt_speed + 小游戏配方加成，相加后统一乘在炉次速率上
@@ -482,6 +487,8 @@ async def settle_offline(
     minigame_smelt_bonus = await get_smelt_speed_bonus(session, save.slot_id)
     doctrine_effects = await get_doctrine_effects(session, save.slot_id)
     star_jobs = star_job_bonuses(labor)
+    # 星球周期（§15.5）：按**绝对时间**取当期阶段（确定性，无新表）
+    cycle = B.planet_cycle(planet_id, now)
     # 蓄电池电容池 = 基础值 + 科技扩容（每次结算重算一遍，幂等、不累加）
     colony.battery_kwh_max = B.BATTERY_KWH_MAX + float(tech_effects.get("battery_kwh_max", 0.0))
     engine_state = build_engine_state(
@@ -498,6 +505,8 @@ async def settle_offline(
         minigame_smelt_bonus=minigame_smelt_bonus,
         doctrine_effects=doctrine_effects,
         star_jobs=star_jobs,
+        planet_cycle=cycle,
+        planet_cycle_factor=float(cycle["production_multiplier"]),
     )
     delta_seconds = now - int(colony.last_tick_time)
     report = calculate_offline_progress(engine_state, delta_seconds)
