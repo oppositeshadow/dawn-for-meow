@@ -25,3 +25,8 @@ backend/var/*.log
 node_modules/
 dist/
 .npm-cache/
+
+# 设计与策划思路文档（开源排除）
+/*.md
+!/README.md
+归档/
